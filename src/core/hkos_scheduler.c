@@ -25,7 +25,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <hkos.h>
+#include <hkos_core.h>
+#include <hkos_hal.h>
+#include <hkos_scheduler.h>
 
 // General Macros
 //

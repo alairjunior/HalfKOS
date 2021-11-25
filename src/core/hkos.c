@@ -19,11 +19,16 @@
  * along with HalfKOS.  If not, see <https://www.gnu.org/licenses/>.
  *
  *****************************************************************************/
-#ifndef __HKOS_H
-#define __HKOS_H
 
-#include <core/hkos_core.h>
-#include <core/hkos_hal_types.h>
+/**************************************************************************
+ *
+ * Glue logic between the HalfKOS interface and core functions
+ *
+ * ************************************************************************/
+#include <hkos.h>
+#include <hkos_hal.h>
+#include <hkos_scheduler.h>
+
 
 /******************************************************************************
  * Initialize HalfKOS
@@ -31,8 +36,10 @@
  * This function must be called before calling any other HalfKOS function.
  *
  *****************************************************************************/
-void hkos_init( void );
-
+void hkos_init( void ) {
+    hkos_hal_init();
+    hkos_scheduler_init();
+}
 
 /******************************************************************************
  * Add a task to HalfKOS scheduler
@@ -43,8 +50,9 @@ void hkos_init( void );
  * @return  Pointer to the task structure or NULL if task cannot be created.
  *
  *****************************************************************************/
-void* hkos_add_task( void (*p_task_func)(), hkos_size_t stack_size );
-
+void* hkos_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
+    return hkos_scheduler_add_task( p_task_func, stack_size );
+}
 
 /******************************************************************************
  * Remove a task from HalfKOS scheduler
@@ -53,14 +61,17 @@ void* hkos_add_task( void (*p_task_func)(), hkos_size_t stack_size );
  *                              hkos_add_task
  *
  *****************************************************************************/
-void hkos_remove_task( void* p_task_in );
-
+void hkos_remove_task( void* p_task_in ) {
+    hkos_scheduler_remove_task( p_task_in );
+}
 
 /******************************************************************************
  * Start the HalfKOS scheduler
  *
  *****************************************************************************/
-void hkos_start( void );
+void hkos_start( void ) {
+    hkos_scheduler_start();
+}
 
 
 /******************************************************************************
@@ -73,7 +84,9 @@ void hkos_start( void );
  * @param[in]   mode    the mode selected from the pin mode enumeration
  *
  *****************************************************************************/
-void hkos_gpio_config( uint8_t pin, gpio_pin_mode_t mode );
+void hkos_gpio_config( uint8_t pin, gpio_pin_mode_t mode ) {
+    hkos_hal_gpio_config( pin, mode );
+}
 
 
 /******************************************************************************
@@ -86,7 +99,9 @@ void hkos_gpio_config( uint8_t pin, gpio_pin_mode_t mode );
  * @param[in]   value   the value selected from the pin value enumeration
  *
  *****************************************************************************/
-void hkos_gpio_write( uint8_t pin, gpio_value_t value );
+void hkos_gpio_write( uint8_t pin, gpio_value_t value ) {
+    hkos_hal_gpio_write( pin, value );
+}
 
 
 /******************************************************************************
@@ -98,7 +113,9 @@ void hkos_gpio_write( uint8_t pin, gpio_value_t value );
  * @param[in]   pin     pin number
  *
  *****************************************************************************/
-void hkos_gpio_toggle( uint8_t pin );
+void hkos_gpio_toggle( uint8_t pin ) {
+    hkos_hal_gpio_toggle( pin );
+}
 
 
 /******************************************************************************
@@ -111,7 +128,6 @@ void hkos_gpio_toggle( uint8_t pin );
  * @return  The value of the GPIO pin taken from the pin value enumeration
  *
  *****************************************************************************/
-gpio_value_t hkos_gpio_read( uint8_t pin );
-
-
-#endif //__HKOS_H
+gpio_value_t hkos_gpio_read( uint8_t pin ) {
+    return hkos_hal_gpio_read( pin );
+}

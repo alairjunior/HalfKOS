@@ -22,7 +22,7 @@
 #ifndef __HKOS_SCHEDULER_H
 #define __HKOS_SCHEDULER_H
 
-#include <core/hkos_hal.h>
+#include <hkos_hal.h>
 #include <hkos_config.h>
 
 

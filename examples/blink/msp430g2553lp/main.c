@@ -10,7 +10,7 @@ void blink( uint8_t pin )
 	for(;;) {
 		volatile unsigned int i;	// volatile to prevent optimization
 
-		hkos_hal_gpio_toggle(pin);
+		hkos_gpio_toggle(pin);
 
 		i = 65535;					// SW Delay
 		do i--;
@@ -34,8 +34,8 @@ void blink_error( void )
 	for(;;) {
 		volatile unsigned int i;	// volatile to prevent optimization
 
-		hkos_hal_gpio_toggle(2);
-		hkos_hal_gpio_toggle(14);
+		hkos_gpio_toggle(2);
+		hkos_gpio_toggle(14);
 
 		i = 65535;					// SW Delay
 		do i--;
@@ -45,10 +45,10 @@ void blink_error( void )
 
 int main( void ) {
 	hkos_init();
-    hkos_hal_gpio_write( 2, LOW );
-	hkos_hal_gpio_write( 14, LOW );
-	hkos_hal_gpio_config( 2, OUTPUT );
-	hkos_hal_gpio_config( 14, OUTPUT );
+    hkos_gpio_write( 2, LOW );
+	hkos_gpio_write( 14, LOW );
+	hkos_gpio_config( 2, OUTPUT );
+	hkos_gpio_config( 14, OUTPUT );
 
 	if ( hkos_add_task( blink_red, 64 ) == 0 )
 		blink_error();

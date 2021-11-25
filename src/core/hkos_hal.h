@@ -51,32 +51,7 @@
 #include <stdbool.h>
 #include <hkos_core.h>
 #include <hkos_config.h>
-
-/******************************************************************************
- * Enumeration for GPIO PIN mode
- *
- * GPIO pins can be configured as INPUT, INPUT with pull-up resistor,
- * INPUT with pull-down resistor, or OUTPUT
- *
- *****************************************************************************/
-typedef enum gpio_pin_mode_t {
-    INPUT,
-    INPUT_PULLUP,
-    INPUT_PULLDOWN,
-    OUTPUT,
-} gpio_pin_mode_t;
-
-/******************************************************************************
- * Enumeration for GPIO PIN value
- *
- * GPIO pins can be either in HIGH or LOW
- *
- *****************************************************************************/
-typedef enum gpio_value_t {
-    LOW,
-    HIGH
-} gpio_value_t;
-
+#include <hkos_hal_types.h>
 
 /******************************************************************************
  * Initialize HalfKOS Hardware abstraction layer (HAL)

@@ -13,7 +13,7 @@ APP_DIR  := $(BUILD)/apps
 CXXFLAGS := -mmcu=$(DEVICE) -Wall -DARCH=$(DEVICE)
 LDFLAGS  := -Wl,-Map,$(APP_DIR)/$(DEVICE).map,--gc-sections
 TARGET   := halfkos.elf
-INCLUDE  := -I$(HKOS_DIR)/src/ -I$(HKOS_DIR)/src/core -I$(GCC_DIR)/include -I.
+INCLUDE  := -I$(HKOS_DIR)/src -I$(HKOS_DIR)/src/core -I$(GCC_DIR)/include -I.
 LIB      := -L$(GCC_DIR)/include
 SRC      := $(wildcard $(SRC_DIR)/*.c) \
             $(wildcard $(SRC_DIR)/core/*.c) \
