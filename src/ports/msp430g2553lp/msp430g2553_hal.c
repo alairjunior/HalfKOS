@@ -518,7 +518,6 @@ void hkos_hal_enter_lp( void ) {
  * low power mode.
  *
  *****************************************************************************/
-__attribute__((naked))
 void hkos_hal_exit_lp( void ) {
     // we need to clear the low power bits in the SR of the current task
     asm volatile(
@@ -567,6 +566,7 @@ void hkos_hal_start_tick_timer( void ) {
  *
  *****************************************************************************/
 __attribute__((interrupt(TIMER0_A0_VECTOR)))
+__attribute__((optimize("Og")))
 void timer_a0_isr(void) {
 
     asm volatile(

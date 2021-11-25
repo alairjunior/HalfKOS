@@ -50,14 +50,14 @@ build:
 debug: CXXFLAGS += -DDEBUG -g -Og
 debug: all
 
-release: CXXFLAGS += -O1
+release: CXXFLAGS += -O3
 release: all
 
 run:
 	$(DEBUGGER) rf2500 "prog $(APP_DIR)/$(TARGET)"
 	$(DEBUGGER) rf2500
 
-disassembly:
+disassemble:
 	$(OBJDUMP) -S --disassemble $(APP_DIR)/$(TARGET) > $(APP_DIR)/$(TARGET).dump
 
 clean:
