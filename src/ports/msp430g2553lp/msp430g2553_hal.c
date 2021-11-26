@@ -474,27 +474,41 @@ void hkos_hal_gpio_toggle( uint8_t pin ) {
  * @return  The value of stack pointer after the stack initialization
  *
  *****************************************************************************/
-void* hkos_hal_init_stack( void** pp_sp, void* p_pc, hkos_size_t stack_size ){
+void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
 
+    // This is a sanity check because hkos_hal_get_min_stack_size() is called
+    // when adding the task to the scheduler
     if ( stack_size < hkos_hal_get_min_stack_size() )
         return NULL;
 
-    *--pp_sp = p_pc;
-    *--pp_sp = (void*) GIE;
-    *--pp_sp = (void*) 0x4;  /* r4 */
-    *--pp_sp = (void*) 0x5;  /* r5 */
-    *--pp_sp = (void*) 0x6;  /* r6 */
-    *--pp_sp = (void*) 0x7;  /* r7 */
-    *--pp_sp = (void*) 0x8;  /* r8 */
-    *--pp_sp = (void*) 0x9;  /* r9 */
-    *--pp_sp = (void*) 0xA;  /* r10 */
-    *--pp_sp = (void*) 0xB;  /* r11 */
-    *--pp_sp = (void*) 0xC;  /* r12 */
-    *--pp_sp = (void*) 0xD;  /* r13 */
-    *--pp_sp = (void*) 0xE;  /* r14 */
-    *--pp_sp = (void*) 0xF;  /* r15 */
+    uint16_t* p_stack = (uint16_t*)p_sp;
+    *--p_stack = (uint16_t)p_pc;
+    *--p_stack = (uint16_t)GIE;
+    *--p_stack = (uint16_t)0xFFFF; // R15
+    *--p_stack = (uint16_t)0xEEEE; // R14
+    *--p_stack = (uint16_t)0xDDDD; // R13
+    *--p_stack = (uint16_t)0xCCCC; // R12
+    *--p_stack = (uint16_t)0xBBBB; // R11
+    *--p_stack = (uint16_t)0xAAAA; // R10
+    *--p_stack = (uint16_t)0x9999; // R9
+    *--p_stack = (uint16_t)0x8888; // R8
+    *--p_stack = (uint16_t)0x7777; // R7
+    *--p_stack = (uint16_t)0x6666; // R6
+    *--p_stack = (uint16_t)0x5555; // R5
+    *--p_stack = (uint16_t)0x4444; // R4
 
-    return pp_sp;
+
+    // We paint the stack here so we can analyse stack usage.
+    // to paint it, we include the context switch region too
+    stack_size += hkos_hal_get_min_stack_size();
+    if ( HKOS_PAINT_TASK_STACK ) {
+        while ( (uint8_t*)p_stack > (uint8_t*)p_sp - stack_size ) {
+            *--p_stack = HKOS_STACK_PAINT_VALUE;
+        }
+    }
+
+    // When creating the task, the stack will hold the PC + SR + GP registers
+    return (p_sp - hkos_hal_get_min_stack_size());
 }
 
 

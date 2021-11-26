@@ -122,7 +122,7 @@ gpio_value_t hkos_hal_gpio_read( uint8_t pin );
  * dependent on the target CPU and hence needs to be implemented for each
  * CPU supported.
  *
- * @param[in]   pp_sp       a pointer to the stack pointer indicating the
+ * @param[in]   p_sp        a pointer to the stack pointer indicating the
  *                          memory region of the task stack
  * @param[in]   p_pc        a pointer to the beginning of the task code
  * @param[in]   stack_size  the size of the task's stack
@@ -130,7 +130,7 @@ gpio_value_t hkos_hal_gpio_read( uint8_t pin );
  * @return  The value of stack pointer after the stack initialization
  *
  *****************************************************************************/
-void* hkos_hal_init_stack( void** pp_sp, void* p_pc, hkos_size_t stack_size );
+void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size );
 
 
 /******************************************************************************

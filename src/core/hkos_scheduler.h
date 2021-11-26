@@ -55,7 +55,7 @@ typedef struct hkos_task_t {
  *****************************************************************************/
 typedef struct hkos_ram_t {
     hkos_task_t* volatile       p_current_task;
-    hkos_task_t*                p_task_head;
+    hkos_task_t* volatile       p_task_head;
     volatile uint8_t            dynamic_buffer[   HKOS_AVAILABLE_RAM
                                         - sizeof( hkos_task_t* )
                                         - sizeof( hkos_task_t* ) ];
@@ -70,11 +70,13 @@ typedef struct hkos_ram_t {
  * used and ( 8*sizeof(hkos_dmem_header_t) - 1 ) bits for the size of the
  * block.
  *
+ * OBS: used bit comes last because it is easier to debug in the platform
+ *      I am using for development. No other special reason for that.
  *
  *****************************************************************************/
 typedef struct hkos_ram_block_header_t {
-    uint8_t                 used : 1;
     hkos_dmem_header_t      size : 8*sizeof(hkos_dmem_header_t) - 1;
+    uint8_t                 used : 1;
 } hkos_ram_block_header_t;
 
 

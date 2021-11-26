@@ -31,7 +31,6 @@
 
 // General Macros
 //
-#define arraysize(x)    (sizeof(x) / sizeof(x[0]))
 #define align(x)        ( ( typeof( x ) )( ( size_t )( x + alignof(max_align_t) - 1 ) \
                             & ( size_t )( ~( alignof(max_align_t) -1 ) ) ) )
 
@@ -57,7 +56,7 @@ static void* mem_alloc( hkos_dmem_header_t size ) {
     // we always search from the beginning because of our minimal block header
     // Also, the first block is always aligned
     uint8_t* block_addr = (uint8_t*)align(&hkos_ram.dynamic_buffer[0]);
-    uint8_t* last_ram_addr = (uint8_t*) &hkos_ram.dynamic_buffer[arraysize(hkos_ram.dynamic_buffer)-1];
+    uint8_t* last_ram_addr = (uint8_t*) &hkos_ram.dynamic_buffer[sizeof(hkos_ram.dynamic_buffer)-1];
 
     // The block size needs to include the header size and must be aligned
     size = align( size + sizeof(hkos_dmem_header_t) );
@@ -69,7 +68,7 @@ static void* mem_alloc( hkos_dmem_header_t size ) {
         if ( ( block->header.used == false ) && ( size <= block->header.size ) )
         {
             // Can we split the block?
-            if ( block->header.size >= size + sizeof(hkos_dmem_header_t)) {
+            if ( block->header.size > size + sizeof(hkos_dmem_header_t)) {
                 hkos_ram_block_t* next = (hkos_ram_block_t*)(block_addr + size);
                 next->header.used = false;
                 next->header.size = block->header.size - size;
@@ -109,7 +108,7 @@ static void mem_free( void* p_mem ) {
     p_mem -= sizeof(hkos_dmem_header_t);
 
     uint8_t* block_addr = (uint8_t*)align(&hkos_ram.dynamic_buffer[0]);
-    uint8_t* last_ram_addr = (uint8_t*) &hkos_ram.dynamic_buffer[arraysize(hkos_ram.dynamic_buffer)-1];
+    uint8_t* last_ram_addr = (uint8_t*) &hkos_ram.dynamic_buffer[sizeof(hkos_ram.dynamic_buffer)-1];
 
     // Check if this is a valid header
     if ( ( (uint8_t*)p_mem >= block_addr ) &&
@@ -159,7 +158,7 @@ void hkos_scheduler_init( void ) {
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
     first_block->header.used = false;
-    first_block->header.size = arraysize(hkos_ram.dynamic_buffer);
+    first_block->header.size = sizeof(hkos_ram.dynamic_buffer);
 }
 
 /******************************************************************************
@@ -184,15 +183,17 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
     // store the task data and the context switch data.
     // This reduces the number of memory blocks per task and, therefore,
     // the ram memory byte count per task
-    stack_size += sizeof(hkos_task_t) + hkos_hal_get_min_stack_size();
-    hkos_task_t* p_task = (hkos_task_t*)mem_alloc( stack_size  );
+    hkos_size_t total_size = stack_size + sizeof(hkos_task_t) +
+                                 hkos_hal_get_min_stack_size();
+
+    hkos_task_t* p_task = (hkos_task_t*)mem_alloc( total_size  );
 
     if ( p_task != NULL ) {
         p_task->p_next = hkos_ram.p_task_head;
         hkos_ram.p_task_head = p_task;
 
         // initialize the stack pointer at the top of task's memory
-        p_task->p_sp = ( (uint8_t*)p_task ) + stack_size;
+        p_task->p_sp = ( (uint8_t*)p_task ) + total_size;
 
         // Initialize the stack content and update the stack pointer
         if ( NULL != ( p_task->p_sp = hkos_hal_init_stack( p_task->p_sp, p_task_func, stack_size ) ) )
