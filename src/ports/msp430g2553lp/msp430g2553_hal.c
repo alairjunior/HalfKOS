@@ -38,7 +38,7 @@
 //
 #define BIT(x)          (1 << x)
 #define arraysize(x)    (sizeof(x) / sizeof(x[0]))
-#define MIN_STACK_SIZE  28
+
 
 /******************************************************************************
  * HalfKOS GPIO structure for MSP430G2553
@@ -317,7 +317,7 @@ static inline void stop_tick_timer( void ) {
  *  Helper function to initialize timer A interrupts
  *
  *****************************************************************************/
-static void init_timerA( void ) {
+static inline void init_timerA( void ) {
     // Disable timer0 A0 interrupt
     TACCTL0 &= ~CCIE;
 
@@ -476,7 +476,7 @@ void hkos_hal_gpio_toggle( uint8_t pin ) {
  *****************************************************************************/
 void* hkos_hal_init_stack( void** pp_sp, void* p_pc, hkos_size_t stack_size ){
 
-    if ( stack_size < MIN_STACK_SIZE )
+    if ( stack_size < hkos_hal_get_min_stack_size() )
         return NULL;
 
     *--pp_sp = p_pc;
@@ -519,15 +519,7 @@ void hkos_hal_enter_lp( void ) {
  *
  *****************************************************************************/
 void hkos_hal_exit_lp( void ) {
-    // we need to clear the low power bits in the SR of the current task
-    asm volatile(
-        "mov.w  %0,         r4      \n\t"
-        "bic.w  %1,     -24(r4)     \n\t"
-                :
-                : "m" (hkos_ram.p_current_task->p_sp), "i" (LPM1_bits)
-                : "r4", "r5"
-    );
-
+    // do nothing for the moment.
 }
 
 /******************************************************************************
@@ -536,6 +528,26 @@ void hkos_hal_exit_lp( void ) {
  *****************************************************************************/
 void hkos_hal_start_tick_timer( void ) {
     start_tick_timer();
+}
+
+/******************************************************************************
+ * Get the minimal stack size
+ *
+ * Depending on the CPU, the minimum stack size can be different. Besides the
+ * task's user operations, the stack needs to be big enough to store data
+ * during the context switch
+ *
+ * Minimum stack size on MSP430:
+ *          + 2 Bytes for PC
+ *          + 2 Bytes for SR
+ *          + 12*2 Bytes for GP registers
+ *
+ *          = 28 bytes
+ *
+ *****************************************************************************/
+inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
+    return 28; // better define it here than at the beginning of this file.
+               // less mind jumps when analysing the code.
 }
 
 /******************************************************************************
@@ -548,60 +560,53 @@ void hkos_hal_start_tick_timer( void ) {
  *      2. Call hkos_scheduler_switch
  *      3. Restore the new current task's context
  *
- * Implementation of this ISR is tricky. The compiler usually saves the
- * registers used and restores them by the end. Some implementations use
- * the naked attribute to prevent this and other side effects. We decided
- * to use that in our favor and marked almost all registers in the clobber
- * section of the inline assembly (asm). Usually, registers r11-r15 are saved
- * by the compiler anyway. Saying that we are using registers r4-r10 makes
- * the compiler save them in the stack when entering the interrupt, saving
- * the context for us (step 1). If there is no current task, we just restore
- * the same values before moving to the next step (step 2).
- * After switching the current task, we just need to point the sp to the proper
- * location and let the epilogue defined by the compiler to restore all the
- * registers from the new stack.
- *
- * OBS: It is very instructive to see how this function is compiled to
- * assembly. Get your hands dirty and see how it is being done.
  *
  *****************************************************************************/
+__attribute__((naked))
 __attribute__((interrupt(TIMER0_A0_VECTOR)))
-__attribute__((optimize("Og")))
 void timer_a0_isr(void) {
-
     asm volatile(
-        "cmp    #0, %1          \n\t"
-        "jz     no_task         \n\t"
-        "mov.w  r1, %0          \n\t"
-        "jmp    done_save       \n\t"
-    "no_task:                   \n\t"
-        "pop    r4              \n\t"
-        "pop    r5              \n\t"
-        "pop    r6              \n\t"
-        "pop    r7              \n\t"
-        "pop    r8              \n\t"
-        "pop    r9              \n\t"
-        "pop    r10             \n\t"
-        "pop    r11             \n\t"
-        "pop    r12             \n\t"
-        "pop    r13             \n\t"
-        "pop    r14             \n\t"
-        "pop    r15             \n\t"
-    "done_save:                 \n\t"
-            :   "=m" (hkos_ram.p_current_task->p_sp)
-            :   "m"  (hkos_ram.p_current_task)
-            :   "r4", "r5", "r6", "r7", "r8", "r9", "r10"
+        "hkos_hal_save_context:             \n\t"
+        "   cmp     #0,   &hkos_ram         \n\t"
+        "   jz      done_save               \n\t"
+        "   push    r15                     \n\t"
+        "   push    r14                     \n\t"
+        "   push    r13                     \n\t"
+        "   push    r12                     \n\t"
+        "   push    r11                     \n\t"
+        "   push    r10                     \n\t"
+        "   push    r9                      \n\t"
+        "   push    r8                      \n\t"
+        "   push    r7                      \n\t"
+        "   push    r6                      \n\t"
+        "   push    r5                      \n\t"
+        "   push    r4                      \n\t"
+        "   mov.w   &hkos_ram, r15          \n\t"
+        "   mov.w   r1,        0(r15)       \n\t"
+        "done_save:                         \n\t"
+
+        "   call    #hkos_scheduler_switch  \n\t"
+
+        "hkos_hal_restore_context:          \n\t"
+        "   cmp     #0,   &hkos_ram         \n\t"
+        "   jz      done_restore            \n\t"
+        "   mov.w   &hkos_ram,  r15         \n\t"
+        "   mov.w   0(r15),     r1          \n\t"
+        "   pop     r4                      \n\t"
+        "   pop     r5                      \n\t"
+        "   pop     r6                      \n\t"
+        "   pop     r7                      \n\t"
+        "   pop     r8                      \n\t"
+        "   pop     r9                      \n\t"
+        "   pop     r10                     \n\t"
+        "   pop     r11                     \n\t"
+        "   pop     r12                     \n\t"
+        "   pop     r13                     \n\t"
+        "   pop     r14                     \n\t"
+        "   pop     r15                     \n\t"
+        "done_restore:                      \n\t"
+        "   reti                            \n\t"
     );
-
-    hkos_scheduler_switch();
-
-    asm volatile(
-        "mov.w  %0, r1"
-            :
-            : "m" (hkos_ram.p_current_task->p_sp)
-            : "r4", "r5", "r6", "r7", "r8", "r9", "r10"
-    );
-
 }
 
 #endif // ARCH==MSP430G2553

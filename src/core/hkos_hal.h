@@ -169,4 +169,15 @@ void hkos_hal_enter_lp( void );
 void hkos_hal_exit_lp( void );
 
 
+/******************************************************************************
+ * Get the minimal stack size
+ *
+ * Depending on the CPU, the minimum stack size can be different. Besides the
+ * task's user operations, the stack needs to be big enough to store data
+ * during the context switch
+ *
+ *****************************************************************************/
+hkos_size_t hkos_hal_get_min_stack_size( void );
+
+
 #endif // __HKOS_HAL_H

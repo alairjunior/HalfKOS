@@ -179,15 +179,20 @@ void hkos_scheduler_init( void ) {
  *****************************************************************************/
 void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
 
-    // Alloca
-    hkos_task_t* p_task = (hkos_task_t*)mem_alloc( stack_size + sizeof(hkos_task_t) );
+    // Allocate memory for the stack
+    // In that memory region, besides the size requested by the user, we also
+    // store the task data and the context switch data.
+    // This reduces the number of memory blocks per task and, therefore,
+    // the ram memory byte count per task
+    stack_size += sizeof(hkos_task_t) + hkos_hal_get_min_stack_size();
+    hkos_task_t* p_task = (hkos_task_t*)mem_alloc( stack_size  );
 
     if ( p_task != NULL ) {
         p_task->p_next = hkos_ram.p_task_head;
         hkos_ram.p_task_head = p_task;
 
         // initialize the stack pointer at the top of task's memory
-        p_task->p_sp = ( (uint8_t*)p_task ) + sizeof(hkos_task_t) + stack_size;
+        p_task->p_sp = ( (uint8_t*)p_task ) + stack_size;
 
         // Initialize the stack content and update the stack pointer
         if ( NULL != ( p_task->p_sp = hkos_hal_init_stack( p_task->p_sp, p_task_func, stack_size ) ) )
@@ -268,7 +273,7 @@ void hkos_scheduler_start( void ) {
  * implemented in HalfKOS HAL.
  *
  * ************************************************************************/
-inline void hkos_scheduler_switch( void ) {
+void hkos_scheduler_switch( void ) {
 
     if ( hkos_ram.p_task_head != NULL ) {
         if ( hkos_ram.p_current_task != NULL ) {
@@ -278,9 +283,5 @@ inline void hkos_scheduler_switch( void ) {
         if ( hkos_ram.p_current_task == NULL )
             hkos_ram.p_current_task = hkos_ram.p_task_head;
 
-        hkos_hal_exit_lp();
-
-    } else {
-        hkos_hal_enter_lp();
     }
 }
