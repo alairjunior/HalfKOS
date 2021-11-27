@@ -57,7 +57,6 @@ typedef struct hkos_task_t {
  *
  *****************************************************************************/
 typedef struct hkos_ram_t {
-    void*               p_os_sp;
     volatile uint8_t    dynamic_buffer[ HKOS_DYNAMIC_RAM ];
     volatile uint8_t    os_stack[
                             HKOS_AVAILABLE_RAM
@@ -70,7 +69,7 @@ typedef struct hkos_ram_t {
 
 /******************************************************************************
  * The HalfKOS ram structure needs to be accessed for saving and restoring
- * the context, which is done by the timer0A0 ISR
+ * the context, which is done by the tick timer ISR
  *****************************************************************************/
 extern hkos_ram_t hkos_ram;
 
@@ -83,6 +82,11 @@ extern hkos_task_t* volatile  p_hkos_current_task;
  * Pointer to the head of the task list
  *****************************************************************************/
 extern hkos_task_t* volatile   p_hkos_task_list_head;
+
+/******************************************************************************
+ * Pointer to the HalfKOS stack pointer (idle task)
+ *****************************************************************************/
+extern void* p_hkos_sp;
 
 /******************************************************************************
  * HalfKOS ram memory dynamic allocation block header structure

@@ -38,6 +38,13 @@
  *      - hkos_hal_init
  *      - hkos_hal_init_stack
  *      - hkos_hal_get_min_stack_size
+ *      - hkos_hal_jump_to_os
+ *
+ * 3. FUNCTIONS TO BE CALLED :
+ *
+ *      - hkos_scheduler_switch: must be called from the interrupt that
+ *        handles the context switch, after saving the context and
+ *        before restoring the context of the next thread.
  *
  *
  * See the description of functions for details on how to implement them.

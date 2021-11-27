@@ -165,7 +165,7 @@ static inline uint8_t pin_get_port( uint8_t pin ) {
  *
  * @param[in]   pin     pin number
  *
- * @return the port number
+ * @return the pin mask value
  *
  *****************************************************************************/
 static inline uint8_t pin_get_mask( uint8_t pin ) {
@@ -489,8 +489,8 @@ void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
 
     // We paint the stack here so we can analyse stack usage.
     // to paint it, we include the context switch region too
-    stack_size += hkos_hal_get_min_stack_size();
     if ( HKOS_PAINT_TASK_STACK ) {
+        stack_size += hkos_hal_get_min_stack_size();
         while ( (uint8_t*)p_stack > (uint8_t*)p_sp - stack_size ) {
             *--p_stack = HKOS_STACK_PAINT_VALUE;
         }
@@ -529,7 +529,7 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  * and start the timer to do the context switch operation. The interrupt to
  * handle the context switch must do the following operations:
  *
- *      1. Save the current task's context (stored in hkos_ram.current_task)
+ *      1. Save the current task's context (stored in p_hkos_current_task)
  *      2. Call hkos_scheduler_switch
  *      3. Restore the new current task's context
  *
@@ -537,25 +537,47 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
 void hkos_hal_jump_to_os( void ) {
     // We won't return from this call, so we can mess with
     // the stack pointer and registers freely
+
+    // We paint the OS stack to help debug
     if ( HKOS_PAINT_TASK_STACK ) {
         for ( hkos_size_t i = 0; i < arraysize(hkos_ram.os_stack); i+=2 ) {
             *(uint16_t*)(&hkos_ram.os_stack[i]) = HKOS_STACK_PAINT_VALUE;
         }
     }
 
+    // This will prepare the system to be in idle. This is essentially an
+    // idle task but it was not included as a task to save a couple of bytes
+    // of memory. The way it works is the following:
+    //      1. We point the SP (R1) to the memory region reserved for the OS
+    //      2. We push the hkos_idle lable position to the stack. This will
+    //         be our PC when there is no other task to run
+    //      3. We push the SR to the stack. In this case, SR will have LPM1
+    //         bits set. This will make the CPU to turn off whenever the idle
+    //         task is running. Each task has its own SR, so it will not affect
+    //         other tasks. Idle task also have global interrupts enabled (GIE)
+    //      4. We save back the idle task pointer to be restored when there is
+    //         no tasks running
+    //      5. We disable the interrupts so the idle task is not interrupted
+    //         after starting the tick timer
+    //      6. We start the tick timer (timer0A0) to start handling the context
+    //         switch
+    //      7. We simulate a return from interrupt, so PC and SR are restored,
+    //         so idle task goes to its code position, we enter LPM1 state and
+    //         global interrupts are enabled again.
     asm volatile (
-        "mov.w      %0,                     r1          \n\t"
-        "add.w      %1,                     r1          \n\t"
-        "push       #hkos_idle                          \n\t"
-        "push       %3                                  \n\t"
-        "call       #start_tick_timer                   \n\t"
-        "mov.w      r1, %2                              \n\t"
-        "reti                                           \n\t"
-    "hkos_idle:                                         \n\t"
-        "jmp        hkos_idle                           \n\t"
+        "mov.w      %0,                  r1 \n\t" // Point r1 to the os stack
+        "add.w      %1,                  r1 \n\t" // move r1 to the stack's end
+        "push       #hkos_idle              \n\t" // push the idle PC
+        "push       %3                      \n\t" // push SR with LPM1 enabled
+        "mov.w      r1,                  %2 \n\t" // save the new os SP
+        "bic.w      %4,                  r2 \n\t" // Disable interrupts
+        "call       #start_tick_timer       \n\t" // starts the tick timer
+        "reti                               \n\t" // RETI will update PC and SR
+    "hkos_idle:                             \n\t"
+        "jmp        hkos_idle               \n\t" // when idle, we do nothing
         :
         : "i" (&hkos_ram.os_stack[0]), "i" (sizeof(hkos_ram.os_stack)),
-                    "m" (hkos_ram.p_os_sp), "i" (GIE+LPM1_bits)
+                    "m" (p_hkos_sp), "i" (GIE+LPM1_bits), "i" (GIE)
         :
     );
 }
@@ -578,9 +600,9 @@ __attribute__((interrupt(TIMER0_A0_VECTOR)))
 void timer_a0_isr(void) {
     asm volatile(
         "hkos_hal_save_context:             \n\t"
-        "   cmp     #0, p_hkos_current_task \n\t"
-        "   jz      done_save               \n\t"
-        "   push    r15                     \n\t"
+        "   cmp     #0, p_hkos_current_task \n\t" // is there current task?
+        "   jz      done_save               \n\t" // if not, nothing to do
+        "   push    r15                     \n\t" // push context to stack
         "   push    r14                     \n\t"
         "   push    r13                     \n\t"
         "   push    r12                     \n\t"
@@ -592,19 +614,18 @@ void timer_a0_isr(void) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   p_hkos_current_task, r15\n\t"
-        "   mov.w   r1,        0(r15)       \n\t"
+        "   mov.w   p_hkos_current_task, r15\n\t" // point to current task
+        "   mov.w   r1,               0(r15)\n\t" // save the task SP
         "   jmp     done_save               \n\t"
         "done_save:                         \n\t"
 
-        "   call #hkos_scheduler_switch     \n\t"
+        "   call #hkos_scheduler_switch     \n\t" // change current task
 
         "hkos_hal_restore_context:          \n\t"
-
-        "   cmp     #0, p_hkos_current_task \n\t"
-        "   jz      done_restore            \n\t"
-        "   mov.w   p_hkos_current_task, r15\n\t"
-        "   mov.w   0(r15),     r1          \n\t"
+        "   cmp     #0, p_hkos_current_task \n\t" // is there current task?
+        "   jz      go_idle                 \n\t" // if not, switch to idle
+        "   mov.w   p_hkos_current_task, r15\n\t" // otherwise, restore it
+        "   mov.w   0(r15),               r1\n\t"
         "   pop     r4                      \n\t"
         "   pop     r5                      \n\t"
         "   pop     r6                      \n\t"
@@ -617,6 +638,9 @@ void timer_a0_isr(void) {
         "   pop     r13                     \n\t"
         "   pop     r14                     \n\t"
         "   pop     r15                     \n\t"
+        "   jmp     done_restore            \n\t"
+        "go_idle:                           \n\t"
+        "   mov.w   p_hkos_sp,            r1\n\t"
         "done_restore:                      \n\t"
         "   reti                            \n\t"
     );

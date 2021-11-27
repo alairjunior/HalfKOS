@@ -50,6 +50,11 @@ hkos_task_t* volatile  p_hkos_current_task;
  *****************************************************************************/
 hkos_task_t* volatile   p_hkos_task_list_head;
 
+/******************************************************************************
+ * Pointer to the HalfKOS stack pointer (idle task)
+ *****************************************************************************/
+void* p_hkos_sp;
+
 /**************************************************************************
  * Helper function to allocate a memory in the HKOS RAM buffer
  *
@@ -208,7 +213,9 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
         p_task->p_sp = ( (uint8_t*)p_task ) + total_size;
 
         // Initialize the stack content and update the stack pointer
-        if ( NULL != ( p_task->p_sp = hkos_hal_init_stack( p_task->p_sp, p_task_func, stack_size ) ) )
+        if ( NULL != ( p_task->p_sp = hkos_hal_init_stack(
+                                            p_task->p_sp, p_task_func, stack_size
+                                        ) ) )
             return p_task;
 
         // if something goes wrong, free the memory
