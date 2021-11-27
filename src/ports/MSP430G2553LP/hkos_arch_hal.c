@@ -564,6 +564,7 @@ void hkos_hal_jump_to_os( void ) {
     //      7. We simulate a return from interrupt, so PC and SR are restored,
     //         so idle task goes to its code position, we enter LPM1 state and
     //         global interrupts are enabled again.
+    //
     asm volatile (
         "mov.w      %0,                  r1 \n\t" // Point r1 to the os stack
         "add.w      %1,                  r1 \n\t" // move r1 to the stack's end
@@ -571,6 +572,7 @@ void hkos_hal_jump_to_os( void ) {
         "push       %3                      \n\t" // push SR with LPM1 enabled
         "mov.w      r1,                  %2 \n\t" // save the new os SP
         "bic.w      %4,                  r2 \n\t" // Disable interrupts
+        "nop                                \n\t" // Required after dis. int.
         "call       #start_tick_timer       \n\t" // starts the tick timer
         "reti                               \n\t" // RETI will update PC and SR
     "hkos_idle:                             \n\t"
