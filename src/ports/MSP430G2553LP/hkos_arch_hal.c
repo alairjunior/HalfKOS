@@ -148,12 +148,6 @@ const gpio_location_t GPIO_PIN[] = {
 
 
 /******************************************************************************
- * The HalfKOS ram structure needs to be accessed for saving and restoring
- * the context, which is done by the timer0A0 ISR
- *****************************************************************************/
-extern hkos_ram_t hkos_ram;
-
-/******************************************************************************
  * Helper function to retrieve the port number for a pin
  *
  * @param[in]   pin     pin number
@@ -540,7 +534,6 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  *      3. Restore the new current task's context
  *
  *****************************************************************************/
-__attribute__((naked))
 void hkos_hal_jump_to_os( void ) {
     // We won't return from this call, so we can mess with
     // the stack pointer and registers freely
@@ -561,7 +554,7 @@ void hkos_hal_jump_to_os( void ) {
     "hkos_idle:                                         \n\t"
         "jmp        hkos_idle                           \n\t"
         :
-        : "i" (&hkos_ram), "i" (HKOS_AVAILABLE_RAM),
+        : "i" (&hkos_ram.os_stack[0]), "i" (sizeof(hkos_ram.os_stack)),
                     "m" (hkos_ram.p_os_sp), "i" (GIE+LPM1_bits)
         :
     );
@@ -585,7 +578,7 @@ __attribute__((interrupt(TIMER0_A0_VECTOR)))
 void timer_a0_isr(void) {
     asm volatile(
         "hkos_hal_save_context:             \n\t"
-        "   cmp     #0,   &hkos_ram         \n\t"
+        "   cmp     #0, p_hkos_current_task \n\t"
         "   jz      done_save               \n\t"
         "   push    r15                     \n\t"
         "   push    r14                     \n\t"
@@ -599,20 +592,18 @@ void timer_a0_isr(void) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   &hkos_ram,   r15        \n\t"
+        "   mov.w   p_hkos_current_task, r15\n\t"
         "   mov.w   r1,        0(r15)       \n\t"
         "   jmp     done_save               \n\t"
         "done_save:                         \n\t"
-    );
 
-    hkos_scheduler_switch();
+        "   call #hkos_scheduler_switch     \n\t"
 
-    asm volatile (
         "hkos_hal_restore_context:          \n\t"
 
-        "   cmp     #0,   &hkos_ram         \n\t"
+        "   cmp     #0, p_hkos_current_task \n\t"
         "   jz      done_restore            \n\t"
-        "   mov.w   &hkos_ram,  r15         \n\t"
+        "   mov.w   p_hkos_current_task, r15\n\t"
         "   mov.w   0(r15),     r1          \n\t"
         "   pop     r4                      \n\t"
         "   pop     r5                      \n\t"

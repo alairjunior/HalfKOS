@@ -47,27 +47,42 @@ typedef struct hkos_task_t {
  *
  * hkos_ram_t is declared in such a way that it uses all memory available to
  * HalfKOS. Apart from the dynamic buffer, used for dynamic allocation,
- * there is also a pointer to the current task and a pointer to the task list
- * head.
+ * there is also the stack region.
  *
- * OBS: this structure is probably going to change as new features are
- * implemented in HalfKOS, like priorities, wait lists, etc.
+ * OBS: It would be interesting to have the task pointers inside this structure
+ * as well for maintainability. However, for the ISR be able to be declared
+ * as naked and, at the same time, we continue to have access to the tasks
+ * directly in the basic ASM, the only solution is to have their symbols
+ * as globals. Extended ASM cannot be used inside naked functions.
  *
  *****************************************************************************/
 typedef struct hkos_ram_t {
-    hkos_task_t* volatile       p_current_task;
-    hkos_task_t* volatile       p_task_head;
-    void*                       p_os_sp;
-    volatile uint8_t            dynamic_buffer[ HKOS_DYNAMIC_RAM ];
-    volatile uint8_t            os_stack[
-                                    HKOS_AVAILABLE_RAM
-                                    - HKOS_DYNAMIC_RAM
-                                    - sizeof( hkos_task_t* ) // p_current_task
-                                    - sizeof( hkos_task_t* ) // p_task_head
-                                    - sizeof( void* )        // p_os_sp
-                                ];
+    void*               p_os_sp;
+    volatile uint8_t    dynamic_buffer[ HKOS_DYNAMIC_RAM ];
+    volatile uint8_t    os_stack[
+                            HKOS_AVAILABLE_RAM
+                            - HKOS_DYNAMIC_RAM
+                            - sizeof( hkos_task_t* ) // p_hkos_current_task
+                            - sizeof( hkos_task_t* ) // p_hkos_task_list_head
+                            - sizeof( void* )        // p_os_sp
+                        ];
 } hkos_ram_t;
 
+/******************************************************************************
+ * The HalfKOS ram structure needs to be accessed for saving and restoring
+ * the context, which is done by the timer0A0 ISR
+ *****************************************************************************/
+extern hkos_ram_t hkos_ram;
+
+/******************************************************************************
+ * Pointer to the current task
+ *****************************************************************************/
+extern hkos_task_t* volatile  p_hkos_current_task;
+
+/******************************************************************************
+ * Pointer to the head of the task list
+ *****************************************************************************/
+extern hkos_task_t* volatile   p_hkos_task_list_head;
 
 /******************************************************************************
  * HalfKOS ram memory dynamic allocation block header structure

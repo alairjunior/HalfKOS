@@ -34,9 +34,21 @@
 #define align(x)        ( ( typeof( x ) )( ( size_t )( x + alignof(max_align_t) - 1 ) \
                             & ( size_t )( ~( alignof(max_align_t) -1 ) ) ) )
 
-// RAM buffer definition
-//
-hkos_ram_t hkos_ram;
+
+/******************************************************************************
+ * RAM buffer definition
+ *****************************************************************************/
+hkos_ram_t                  hkos_ram;
+
+/******************************************************************************
+ * Definition of the pointer to the current task
+ *****************************************************************************/
+hkos_task_t* volatile  p_hkos_current_task;
+
+/******************************************************************************
+ * Pointer to the head of the task list
+ *****************************************************************************/
+hkos_task_t* volatile   p_hkos_task_list_head;
 
 /**************************************************************************
  * Helper function to allocate a memory in the HKOS RAM buffer
@@ -152,8 +164,8 @@ static void mem_free( void* p_mem ) {
  * ************************************************************************/
 void hkos_scheduler_init( void ) {
     // no tasks
-    hkos_ram.p_current_task = NULL;
-    hkos_ram.p_task_head = NULL;
+    p_hkos_current_task = NULL;
+    p_hkos_task_list_head = NULL;
 
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
@@ -189,8 +201,8 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
     hkos_task_t* p_task = (hkos_task_t*)mem_alloc( total_size  );
 
     if ( p_task != NULL ) {
-        p_task->p_next = hkos_ram.p_task_head;
-        hkos_ram.p_task_head = p_task;
+        p_task->p_next = p_hkos_task_list_head;
+        p_hkos_task_list_head = p_task;
 
         // initialize the stack pointer at the top of task's memory
         p_task->p_sp = ( (uint8_t*)p_task ) + total_size;
@@ -230,7 +242,7 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
         hkos_task_t* p_search_task;
         hkos_task_t* p_previous = NULL;
 
-        for ( p_search_task = hkos_ram.p_task_head;
+        for ( p_search_task = p_hkos_task_list_head;
                     p_search_task != NULL;
                     p_search_task = p_search_task->p_next ) {
 
@@ -238,12 +250,12 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
                 // found the task
                 if ( p_previous == NULL )
                 {
-                    hkos_ram.p_task_head = p_task->p_next;
+                    p_hkos_task_list_head = p_task->p_next;
                 } else {
                     p_previous->p_next = p_task->p_next;
                 }
-                if ( hkos_ram.p_current_task == p_task ) {
-                    hkos_ram.p_current_task = p_task->p_next;
+                if ( p_hkos_current_task == p_task ) {
+                    p_hkos_current_task = p_task->p_next;
                 }
 
                 mem_free(p_task);
@@ -265,13 +277,13 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
  * ************************************************************************/
 void hkos_scheduler_switch( void ) {
 
-    if ( hkos_ram.p_task_head != NULL ) {
-        if ( hkos_ram.p_current_task != NULL ) {
-            hkos_ram.p_current_task = hkos_ram.p_current_task->p_next;
+    if ( p_hkos_task_list_head != NULL ) {
+        if ( p_hkos_current_task != NULL ) {
+            p_hkos_current_task = p_hkos_current_task->p_next;
         }
 
-        if ( hkos_ram.p_current_task == NULL )
-            hkos_ram.p_current_task = hkos_ram.p_task_head;
+        if ( p_hkos_current_task == NULL )
+            p_hkos_current_task = p_hkos_task_list_head;
 
     }
 }
