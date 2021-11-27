@@ -35,9 +35,10 @@
  *                          must be implemented otherwise a compilation time
  *                          error will arise.
  *
+ *      - hkos_hal_init
  *      - hkos_hal_init_stack
- *      - hkos_hal_start_tick_timer
- *      - hkos_hal_lp_idle
+ *      - hkos_hal_get_min_stack_size
+ *
  *
  * See the description of functions for details on how to implement them.
  * Also, check the already ported microcontrollers for better insights on
@@ -134,42 +135,6 @@ void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size );
 
 
 /******************************************************************************
- * Start the tick timer responsible for the HalfKOS context switch
- *
- * This function must start executing the timer that will handle HalfKOS
- * context switch. The timer interrupt also needs to be implemented and needs
- * perform the following operations:
- *
- *      1. Save the current task's context (stored in hkos_ram.current_task)
- *      2. Call hkos_scheduler_switch
- *      3. Restore the new current task's context
- *
- *****************************************************************************/
-void hkos_hal_start_tick_timer( void );
-
-
-/******************************************************************************
- * Enter the Microcontroller low power mode
- *
- * This function is called by the scheduler to put the Microcontroller in
- * low power mode. When there is no task to be executed, scheduler will call
- * it. IMPORTANT: this function must not prevent the tick timer from running
- * otherwise the system will not return from low-power state.
- *
- *****************************************************************************/
-void hkos_hal_enter_lp( void );
-
-/******************************************************************************
- * Enter the Microcontroller low power mode
- *
- * This function is called by the scheduler to pull the Microcontroller out of
- * low power mode.
- *
- *****************************************************************************/
-void hkos_hal_exit_lp( void );
-
-
-/******************************************************************************
  * Get the minimal stack size
  *
  * Depending on the CPU, the minimum stack size can be different. Besides the
@@ -178,6 +143,21 @@ void hkos_hal_exit_lp( void );
  *
  *****************************************************************************/
 hkos_size_t hkos_hal_get_min_stack_size( void );
+
+
+/******************************************************************************
+ * Jump to the operating system
+ *
+ * This function will point the stack pointer to the operating system's stack
+ * and start the timer to do the context switch operation. The interrupt to
+ * handle the context switch must do the following operations:
+ *
+ *      1. Save the current task's context (stored in hkos_ram.current_task)
+ *      2. Call hkos_scheduler_switch
+ *      3. Restore the new current task's context
+ *
+ *****************************************************************************/
+void hkos_hal_jump_to_os( void );
 
 
 #endif // __HKOS_HAL_H

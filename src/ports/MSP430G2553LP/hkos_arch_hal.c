@@ -299,7 +299,7 @@ static inline void init_dco( void ) {
  *  Helper function to start the tick timer
  *
  *****************************************************************************/
-static inline void start_tick_timer( void ) {
+void start_tick_timer( void ) {
     // enable timer0 A0 interrupt
     TACCTL0 |= CCIE;
 }
@@ -476,11 +476,6 @@ void hkos_hal_gpio_toggle( uint8_t pin ) {
  *****************************************************************************/
 void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
 
-    // This is a sanity check because hkos_hal_get_min_stack_size() is called
-    // when adding the task to the scheduler
-    if ( stack_size < hkos_hal_get_min_stack_size() )
-        return NULL;
-
     uint16_t* p_stack = (uint16_t*)p_sp;
     *--p_stack = (uint16_t)p_pc;
     *--p_stack = (uint16_t)GIE;
@@ -513,38 +508,6 @@ void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
 
 
 /******************************************************************************
- * Enter the Microcontroller low power mode
- *
- * This function is called by the scheduler to put the Microcontroller in
- * low power mode. When there is no task to be executed, scheduler will call
- * it. LPM1 mode does not prevent the Timer0A0 (tick timer) from generating
- * interrupts.
- *
- *****************************************************************************/
-void hkos_hal_enter_lp( void ) {
-    LPM1;
-}
-
-/******************************************************************************
- * Enter the Microcontroller low power mode
- *
- * This function is called by the scheduler to pull the Microcontroller out of
- * low power mode.
- *
- *****************************************************************************/
-void hkos_hal_exit_lp( void ) {
-    // do nothing for the moment.
-}
-
-/******************************************************************************
- * Start the tick timer responsible for the HalfKOS context switch
- *
- *****************************************************************************/
-void hkos_hal_start_tick_timer( void ) {
-    start_tick_timer();
-}
-
-/******************************************************************************
  * Get the minimal stack size
  *
  * Depending on the CPU, the minimum stack size can be different. Besides the
@@ -563,6 +526,47 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
     return 28; // better define it here than at the beginning of this file.
                // less mind jumps when analysing the code.
 }
+
+
+/******************************************************************************
+ * Jump to the operating system
+ *
+ * This function will point the stack pointer to the operating system's stack
+ * and start the timer to do the context switch operation. The interrupt to
+ * handle the context switch must do the following operations:
+ *
+ *      1. Save the current task's context (stored in hkos_ram.current_task)
+ *      2. Call hkos_scheduler_switch
+ *      3. Restore the new current task's context
+ *
+ *****************************************************************************/
+__attribute__((naked))
+void hkos_hal_jump_to_os( void ) {
+    // We won't return from this call, so we can mess with
+    // the stack pointer and registers freely
+    if ( HKOS_PAINT_TASK_STACK ) {
+        for ( hkos_size_t i = 0; i < arraysize(hkos_ram.os_stack); i+=2 ) {
+            *(uint16_t*)(&hkos_ram.os_stack[i]) = HKOS_STACK_PAINT_VALUE;
+        }
+    }
+
+    asm volatile (
+        "mov.w      %0,                     r1          \n\t"
+        "add.w      %1,                     r1          \n\t"
+        "push       #hkos_idle                          \n\t"
+        "push       %3                                  \n\t"
+        "call       #start_tick_timer                   \n\t"
+        "mov.w      r1, %2                              \n\t"
+        "reti                                           \n\t"
+    "hkos_idle:                                         \n\t"
+        "jmp        hkos_idle                           \n\t"
+        :
+        : "i" (&hkos_ram), "i" (HKOS_AVAILABLE_RAM),
+                    "m" (hkos_ram.p_os_sp), "i" (GIE+LPM1_bits)
+        :
+    );
+}
+
 
 /******************************************************************************
  * TIMER0_A0 ISR. This is the HalfKOS tick timer
@@ -595,13 +599,17 @@ void timer_a0_isr(void) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   &hkos_ram, r15          \n\t"
+        "   mov.w   &hkos_ram,   r15        \n\t"
         "   mov.w   r1,        0(r15)       \n\t"
+        "   jmp     done_save               \n\t"
         "done_save:                         \n\t"
+    );
 
-        "   call    #hkos_scheduler_switch  \n\t"
+    hkos_scheduler_switch();
 
+    asm volatile (
         "hkos_hal_restore_context:          \n\t"
+
         "   cmp     #0,   &hkos_ram         \n\t"
         "   jz      done_restore            \n\t"
         "   mov.w   &hkos_ram,  r15         \n\t"

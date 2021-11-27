@@ -70,7 +70,7 @@ void hkos_remove_task( void* p_task_in ) {
  *
  *****************************************************************************/
 void hkos_start( void ) {
-    hkos_scheduler_start();
+    hkos_hal_jump_to_os();
 }
 
 

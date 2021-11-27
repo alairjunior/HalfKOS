@@ -50,10 +50,10 @@ int main( void ) {
 	hkos_gpio_config( 2, OUTPUT );
 	hkos_gpio_config( 14, OUTPUT );
 
-	if ( hkos_add_task( blink_red, 32 ) == 0 )
+	if ( hkos_add_task( blink_red, 16 ) == 0 )
 		blink_error();
 
-	if ( hkos_add_task( blink_green, 32 ) == 0 )
+	if ( hkos_add_task( blink_green, 16 ) == 0 )
 		blink_error();
 
 	// Should not return

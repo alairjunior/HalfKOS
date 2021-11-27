@@ -3,6 +3,7 @@ GCC_DIR   := $(TOOLS_DIR)/msp430-gcc
 HKOS_DIR  := ../../..
 
 DEVICE   := MSP430G2553
+VARIANT  := MSP430G2553LP
 CXX      := $(GCC_DIR)/bin/msp430-elf-gcc
 OBJDUMP  := $(GCC_DIR)/bin/msp430-elf-objdump
 DEBUGGER := $(TOOLS_DIR)/mspdebug/mspdebug
@@ -10,14 +11,18 @@ BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 SRC_DIR  := $(HKOS_DIR)/src
 APP_DIR  := $(BUILD)/apps
-CXXFLAGS := -mmcu=$(DEVICE) -Wall -DARCH=$(DEVICE)
+CXXFLAGS := -mmcu=$(DEVICE) -Wall -DARCH=$(VARIANT)
 LDFLAGS  := -Wl,-Map,$(APP_DIR)/$(DEVICE).map,--gc-sections
 TARGET   := halfkos.elf
-INCLUDE  := -I$(HKOS_DIR)/src -I$(HKOS_DIR)/src/core -I$(GCC_DIR)/include -I.
+INCLUDE  := -I$(SRC_DIR) \
+            -I$(SRC_DIR)/core \
+			-I$(GCC_DIR)/include \
+            -I$(SRC_DIR)/ports/$(VARIANT) \
+			-I.
 LIB      := -L$(GCC_DIR)/include
 SRC      := $(wildcard $(SRC_DIR)/*.c) \
             $(wildcard $(SRC_DIR)/core/*.c) \
-			$(wildcard $(SRC_DIR)/ports/msp430g2553lp/*.c) \
+			$(wildcard $(SRC_DIR)/ports/$(VARIANT)/*.c) \
 
 SRC_LOC  := $(wildcard ./*.c)
 

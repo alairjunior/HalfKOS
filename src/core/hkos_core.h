@@ -22,7 +22,7 @@
 #ifndef __HKOS_CORE_H
 #define __HKOS_CORE_H
 
-#include <hkos_config.h>
+#include <hkos_arch_hal.h>
 
 /******************************************************************************
  * Size data type is the same as the dynamic header size data type

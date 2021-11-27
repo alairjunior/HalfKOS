@@ -41,6 +41,7 @@ typedef struct hkos_task_t {
     hkos_task_t*        p_next;
 } hkos_task_t;
 
+
 /******************************************************************************
  * HalfKOS ram memory structure
  *
@@ -56,9 +57,15 @@ typedef struct hkos_task_t {
 typedef struct hkos_ram_t {
     hkos_task_t* volatile       p_current_task;
     hkos_task_t* volatile       p_task_head;
-    volatile uint8_t            dynamic_buffer[   HKOS_AVAILABLE_RAM
-                                        - sizeof( hkos_task_t* )
-                                        - sizeof( hkos_task_t* ) ];
+    void*                       p_os_sp;
+    volatile uint8_t            dynamic_buffer[ HKOS_DYNAMIC_RAM ];
+    volatile uint8_t            os_stack[
+                                    HKOS_AVAILABLE_RAM
+                                    - HKOS_DYNAMIC_RAM
+                                    - sizeof( hkos_task_t* ) // p_current_task
+                                    - sizeof( hkos_task_t* ) // p_task_head
+                                    - sizeof( void* )        // p_os_sp
+                                ];
 } hkos_ram_t;
 
 
@@ -111,6 +118,7 @@ void  hkos_scheduler_init( void );
  *****************************************************************************/
 void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size );
 
+
 /******************************************************************************
  * Remove a task from HalfKOS scheduler
  *
@@ -120,11 +128,6 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size );
  *****************************************************************************/
 void  hkos_scheduler_remove_task( void* p_task_in );
 
-/******************************************************************************
- * Start the HalfKOS scheduler
- *
- *****************************************************************************/
-void  hkos_scheduler_start( void );
 
 /******************************************************************************
  * Execute a context switch

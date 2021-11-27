@@ -257,17 +257,6 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
 }
 
 /******************************************************************************
- * Start the HalfKOS scheduler
- *
- *****************************************************************************/
-void hkos_scheduler_start( void ) {
-    hkos_hal_start_tick_timer();
-
-    // After starting the tick timer, we wait until the first task is scheduled
-    hkos_hal_enter_lp();
-}
-
-/******************************************************************************
  * Execute a context switch
  *
  * This function must be called by the tick timer interrupt, which should be
