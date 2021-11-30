@@ -39,11 +39,13 @@
  *      - hkos_hal_init_stack
  *      - hkos_hal_get_min_stack_size
  *      - hkos_hal_jump_to_os
+ *      - hkos_hal_enter_critical_section
+ *      - hkos_hal_exit_critical_section
  *
  * 3. FUNCTIONS TO BE CALLED :
  *
- *      - hkos_scheduler_switch: must be called from the interrupt that
- *        handles the context switch, after saving the context and
+ *      - hkos_scheduler_switch_context: must be called from the interrupt
+ *        that handles the context switch, after saving the context and
  *        before restoring the context of the next thread.
  *
  *
@@ -153,6 +155,34 @@ hkos_size_t hkos_hal_get_min_stack_size( void );
 
 
 /******************************************************************************
+ * Save context for a context switch
+ *
+ * This function will save the context before a context switch. It must save
+ * all the context information for the current task. Beware that the function
+ * is declared as naked, meaning that there will be no prologue or epilogue
+ * added by the compiler. Most probably the function will be written using
+ * inline assembly and some trickies will be needed to make it work properly.
+ * Check the already ported platforms for insights on how to do it.
+ *
+ *****************************************************************************/
+void hkos_hal_save_context( void ) __attribute__((naked));
+
+
+/******************************************************************************
+ * Restore context after a context switch
+ *
+ * This function will restore the context after a context switch. It must
+ * restore all the context of the new current task. Beware that the function
+ * is declared as naked, meaning that there will be no prologue or epilogue
+ * added by the compiler. Most probably the function will be written using
+ * inline assembly and some trickies will be needed to make it work properly.
+ * Check the already ported platforms for insights on how to do it.
+ *
+ *****************************************************************************/
+void hkos_hal_restore_context( void ) __attribute__((naked));
+
+
+/******************************************************************************
  * Jump to the operating system
  *
  * This function will point the stack pointer to the operating system's stack
@@ -160,11 +190,40 @@ hkos_size_t hkos_hal_get_min_stack_size( void );
  * handle the context switch must do the following operations:
  *
  *      1. Save the current task's context (stored in hkos_ram.current_task)
- *      2. Call hkos_scheduler_switch
+ *      2. Call hkos_scheduler_switch_context
  *      3. Restore the new current task's context
  *
  *****************************************************************************/
 void hkos_hal_jump_to_os( void );
+
+
+/******************************************************************************
+ * Enter Critical Section
+ *
+ * When inside a critical section, the code cannot be preempted. This can be
+ * done using software only (like Lamport's bakery algorithm), but hardware
+ * support is the preferable approach. So we leave it for the HAL to decide.
+ *
+ * OBS: this function must not be called by user code, because it may affect
+ * the time counting. All use of this function MUST be restricted to HalfKOS
+ * core,
+ *
+ *****************************************************************************/
+void hkos_hal_enter_critical_section( void );
+
+
+/******************************************************************************
+ * Exit Critical Section
+ *
+ * Exit critical section must always be called after a call to enter critical
+ * section.
+ *
+ * OBS: this function must not be called by user code, because it may affect
+ * the time counting. All use of this function MUST be restricted to HalfKOS
+ * core,
+ *
+ *****************************************************************************/
+void hkos_hal_exit_critical_section( void );
 
 
 #endif // __HKOS_HAL_H

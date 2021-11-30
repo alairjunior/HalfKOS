@@ -114,4 +114,41 @@ void hkos_gpio_toggle( uint8_t pin );
 gpio_value_t hkos_gpio_read( uint8_t pin );
 
 
+/******************************************************************************
+ * Create a mutex
+ *
+ * @return  Pointer to the mutex structure or NULL if task cannot be created.
+ *
+ * ***************************************************************************/
+void* hkos_create_mutex( void );
+
+
+/******************************************************************************
+ * Lock a mutex
+ *
+ * If mutex is not free, suspend the task until it is free.
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * ***************************************************************************/
+void hkos_lock_mutex( void* p_mutex );
+
+
+/******************************************************************************
+ * Unlock a mutex
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * ***************************************************************************/
+void hkos_unlock_mutex( void* p_mutex );
+
+
+/******************************************************************************
+ * Destroy a mutex
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * ***************************************************************************/
+void hkos_destroy_mutex( void* p_mutex );
+
 #endif //__HKOS_H

@@ -31,15 +31,26 @@
  *
  * hkos_task_t is used to store the task information.
  *
- * OBS: this structure is probably going to change as new features are
- * implemented in HalfKOS, like priorities, wait lists, etc.
- *
  *****************************************************************************/
-typedef struct hkos_task_t hkos_task_t; // forward declaration due to next
+typedef struct hkos_task_t hkos_task_t; // forward declaration due to pointers
 typedef struct hkos_task_t {
     void*               p_sp;
+    hkos_task_t*        p_prev;
     hkos_task_t*        p_next;
+    uint16_t            delay_ticks;
 } hkos_task_t;
+
+
+/******************************************************************************
+ * HalfKOS mutex structure
+ *
+ * hkos_mutex_t is used to store the mutex information.
+ *
+ *****************************************************************************/
+typedef struct hkos_mutex_t {
+    hkos_task_t*        p_task;
+    uint8_t             locked;
+} hkos_mutex_t;
 
 
 /******************************************************************************
@@ -57,8 +68,8 @@ typedef struct hkos_task_t {
  *
  *****************************************************************************/
 typedef struct hkos_ram_t {
-    volatile uint8_t    dynamic_buffer[ HKOS_DYNAMIC_RAM ];
-    volatile uint8_t    os_stack[
+    uint8_t    dynamic_buffer[ HKOS_DYNAMIC_RAM ];
+    uint8_t    os_stack[
                             HKOS_AVAILABLE_RAM
                             - HKOS_DYNAMIC_RAM
                             - sizeof( hkos_task_t* ) // p_hkos_current_task
@@ -76,12 +87,12 @@ extern hkos_ram_t hkos_ram;
 /******************************************************************************
  * Pointer to the current task
  *****************************************************************************/
-extern hkos_task_t* volatile  p_hkos_current_task;
+extern hkos_task_t*  p_hkos_current_task;
 
 /******************************************************************************
- * Pointer to the head of the task list
+ * Pointer to the head of the running tasks list
  *****************************************************************************/
-extern hkos_task_t* volatile   p_hkos_task_list_head;
+extern hkos_task_t*  p_hkos_running_task_head;
 
 /******************************************************************************
  * Pointer to the HalfKOS stack pointer (idle task)
@@ -112,7 +123,7 @@ typedef struct hkos_ram_block_header_t {
  *****************************************************************************/
 typedef struct hkos_ram_block_t {
     hkos_ram_block_header_t header;
-    uint8_t* volatile       p_buffer;
+    uint8_t*                p_buffer;
 } hkos_ram_block_t;
 
 
@@ -155,6 +166,44 @@ void  hkos_scheduler_remove_task( void* p_task_in );
  * implemented in HalfKOS HAL.
  *
  *****************************************************************************/
-void  hkos_scheduler_switch( void );
+void  hkos_scheduler_switch_context( void );
+
+/******************************************************************************
+ * Create a mutex
+ *
+ * @return  Pointer to the mutex structure or NULL if task cannot be created.
+ *
+ * ***************************************************************************/
+void* hkos_scheduler_create_mutex( void );
+
+
+/******************************************************************************
+ * Lock a mutex
+ *
+ * If mutex is not free, suspend the task until it is free.
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * TODO: Add timeout option
+ *
+ * ***************************************************************************/
+void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex );
+
+/******************************************************************************
+ * Unlock a mutex
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * ***************************************************************************/
+void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex );
+
+/******************************************************************************
+ * Destroy an unlocked mutex
+ *
+ * @param[in]       Pointer to the mutex
+ *
+ * ***************************************************************************/
+void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex );
+
 
 #endif // __HKOS_SCHEDULER_H

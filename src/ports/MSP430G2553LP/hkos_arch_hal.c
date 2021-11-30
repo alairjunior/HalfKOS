@@ -284,7 +284,7 @@ static inline void disable_wdt( void ) {
  *
  *****************************************************************************/
 static inline void init_dco( void ) {
-	// uses the calibrated frequency of 16 MHz
+    // uses the calibrated frequency of 16 MHz
     BCSCTL1 = CALBC1_16MHZ;
     DCOCTL = CALDCO_16MHZ;
 }
@@ -325,7 +325,7 @@ static inline void init_timerA( void ) {
     TA0CCR0 = 1000*HKOS_TIME_SLICE;
 
     // DCO, DCO/8, up and down mode
-    TACTL = TASSEL_2 | ID_3 | MC_2;
+    TACTL = TASSEL_2 | ID_3 | MC_3;
 }
 
 /******************************************************************************
@@ -471,6 +471,8 @@ void hkos_hal_gpio_toggle( uint8_t pin ) {
 void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
 
     uint16_t* p_stack = (uint16_t*)p_sp;
+
+
     *--p_stack = (uint16_t)p_pc;
     *--p_stack = (uint16_t)GIE;
     *--p_stack = (uint16_t)0xFFFF; // R15
@@ -486,18 +488,19 @@ void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
     *--p_stack = (uint16_t)0x5555; // R5
     *--p_stack = (uint16_t)0x4444; // R4
 
+    uint16_t* ret_stack = p_stack;
 
     // We paint the stack here so we can analyse stack usage.
     // to paint it, we include the context switch region too
     if ( HKOS_PAINT_TASK_STACK ) {
         stack_size += hkos_hal_get_min_stack_size();
         while ( (uint8_t*)p_stack > (uint8_t*)p_sp - stack_size ) {
-            *--p_stack = HKOS_STACK_PAINT_VALUE;
+            *--p_stack = HKOS_STACK_PAINT_VALUE | ( HKOS_STACK_PAINT_VALUE << 8 );
         }
     }
 
     // When creating the task, the stack will hold the PC + SR + GP registers
-    return (p_sp - hkos_hal_get_min_stack_size());
+    return ret_stack;
 }
 
 
@@ -512,12 +515,13 @@ void* hkos_hal_init_stack( void* p_sp, void* p_pc, hkos_size_t stack_size ){
  *          + 2 Bytes for PC
  *          + 2 Bytes for SR
  *          + 12*2 Bytes for GP registers
+ *          + 2 Bytes for the context switch call
  *
- *          = 28 bytes
+ *          = 30 bytes
  *
  *****************************************************************************/
 inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
-    return 28; // better define it here than at the beginning of this file.
+    return 30; // better define it here than at the beginning of this file.
                // less mind jumps when analysing the code.
 }
 
@@ -530,7 +534,7 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  * handle the context switch must do the following operations:
  *
  *      1. Save the current task's context (stored in p_hkos_current_task)
- *      2. Call hkos_scheduler_switch
+ *      2. Call hkos_scheduler_switch_context
  *      3. Restore the new current task's context
  *
  *****************************************************************************/
@@ -540,8 +544,8 @@ void hkos_hal_jump_to_os( void ) {
 
     // We paint the OS stack to help debug
     if ( HKOS_PAINT_TASK_STACK ) {
-        for ( hkos_size_t i = 0; i < arraysize(hkos_ram.os_stack); i+=2 ) {
-            *(uint16_t*)(&hkos_ram.os_stack[i]) = HKOS_STACK_PAINT_VALUE;
+        for ( hkos_size_t i = 0; i < arraysize(hkos_ram.os_stack); ++i ) {
+            hkos_ram.os_stack[i] = HKOS_STACK_PAINT_VALUE;
         }
     }
 
@@ -586,25 +590,132 @@ void hkos_hal_jump_to_os( void ) {
 
 
 /******************************************************************************
- * TIMER0_A0 ISR. This is the HalfKOS tick timer
+ * Enter Critical Section
  *
- * This interrupt is responsible for context switch and perform the following
- * operations:
+ * When inside a critical section, the code cannot be preempted. This can be
+ * done using software only (like Lamport's bakery algorithm), but hardware
+ * support is the preferable approach. So we leave it for the HAL to decide.
  *
- *      1. Save the current task's context (stored in hkos_ram.current_task)
- *      2. Call hkos_scheduler_switch
- *      3. Restore the new current task's context
+ * OBS: this function must not be called by user code, because it may affect
+ * the time counting. All use of this function MUST be restricted to HalfKOS
+ * core.
  *
+ * In case of MSP430, since this is a single core / single thread CPU, we just
+ * need to disable interrupts
+ *
+ *****************************************************************************/
+void hkos_hal_enter_critical_section( void ) {
+    __disable_interrupt();
+}
+
+/******************************************************************************
+ * Exit Critical Section
+ *
+ * Exit critical section must always be called after a call to enter critical
+ * section.
+ *
+ * OBS: this function must not be called by user code, because it may affect
+ * the time counting. All use of this function MUST be restricted to HalfKOS
+ * core,
+ *
+ * In case of MSP430, since this is a single core / single thread CPU, we just
+ * need to enable interrupts so scheduler is called
+ *
+ *****************************************************************************/
+void hkos_hal_exit_critical_section( void ) {
+    __enable_interrupt();
+}
+
+/******************************************************************************
+ * Save context for a context switch (interrupt version)
+ *
+ * This function will save the context before a context switch. It must save
+ * all the context information for the current task. Beware that the function
+ * is declared as naked, meaning that there will be no prologue or epilogue
+ * added by the compiler.
+ *
+ * This version is intended to be called from an interrupt.
  *
  *****************************************************************************/
 __attribute__((naked))
-__attribute__((interrupt(TIMER0_A0_VECTOR)))
-void timer_a0_isr(void) {
-    asm volatile(
+static void save_context_from_interrupt( void ) {
+
+    // This requires some explanation: we begin by checking if there is a
+    // current task. If not, we don't need to save the context.
+    // At the top of the stack we have the PC to which we will return at
+    // the end of this function. However, we need to save the context in
+    // the stack, but at the same time, we cannot change the register values
+    // because we are saving the context. So, we do the following:
+    //      1. Leave the PC at the top of the stack (TOS)
+    //      2. Push R14 first, instead of R15
+    //      3. Copy the PC, that is in the second to top stack position, to R14
+    //      4. Copy the content of R15 to the second to top stack position
+    //      5. Push the other registers from 13 to 4
+    //      6. Save the stack pointer, saving the entire context
+    //      7. Now, we push the return PC (stored in R14) to the TOS
+    //      8. We execute a ret, that will return to the calling function
+    asm (
+        "hkos_hal_save_context_int:         \n\t"
+        "   cmp     #0, p_hkos_current_task \n\t"
+        "   jz      done_save_int           \n\t"
+        "   push    r14                     \n\t"
+        "   mov.w   2(r1),               r14\n\t"
+        "   mov.w   r15,               2(r1)\n\t"
+        "   push    r13                     \n\t"
+        "   push    r12                     \n\t"
+        "   push    r11                     \n\t"
+        "   push    r10                     \n\t"
+        "   push    r9                      \n\t"
+        "   push    r8                      \n\t"
+        "   push    r7                      \n\t"
+        "   push    r6                      \n\t"
+        "   push    r5                      \n\t"
+        "   push    r4                      \n\t"
+        "   mov.w   p_hkos_current_task, r15\n\t"
+        "   mov.w   r1,               0(r15)\n\t"
+        "   push    r14                     \n\t"
+        "done_save_int:                     \n\t"
+        "   ret                             \n\t"
+    );
+}
+
+
+/******************************************************************************
+ * Save context for a context switch (general version)
+ *
+ * This function will save the context before a context switch. It must save
+ * all the context information for the current task. Beware that the function
+ * is declared as naked, meaning that there will be no prologue or epilogue
+ * added by the compiler.
+ *
+ * This version is to be called out of the interrupt. This means, it should
+ * simulate an interrupt by pushing SR (R2 to the stack).
+ *
+ *****************************************************************************/
+__attribute__((naked))
+void hkos_hal_save_context( void ) {
+
+    // This requires some explanation: we begin by checking if there is a
+    // current task. If not, we don't need to save the context.
+    // At the top of the stack we have the PC to which we will return at
+    // the end of this function. However, we need to save the context in
+    // the stack, but at the same time, we cannot change the register values
+    // because we are saving the context. So, we do the following:
+    //      1. Leave the PC at the top of the stack (TOS)
+    //      2. Push R15 first
+    //      3. Copy the PC, that is in the second to top stack position, to R15
+    //      4. Copy the content of SR (R2) to the second to top stack position
+    //      5. Push the other registers from 14 to 4
+    //      6. Save the stack pointer, saving the entire context
+    //      7. Now, we push the return PC (stored in R15) to the TOS
+    //      8. We execute a ret, that will return to the calling function
+    asm (
         "hkos_hal_save_context:             \n\t"
-        "   cmp     #0, p_hkos_current_task \n\t" // is there current task?
-        "   jz      done_save               \n\t" // if not, nothing to do
-        "   push    r15                     \n\t" // push context to stack
+        "   cmp     #0, p_hkos_current_task \n\t"
+        "   jz      done_save               \n\t"
+        "   push    r15                     \n\t"
+        "   mov.w   2(r1),               r15\n\t"
+        "   mov.w   r2,                 2(r1)\n\t"
         "   push    r14                     \n\t"
         "   push    r13                     \n\t"
         "   push    r12                     \n\t"
@@ -616,17 +727,33 @@ void timer_a0_isr(void) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   p_hkos_current_task, r15\n\t" // point to current task
-        "   mov.w   r1,               0(r15)\n\t" // save the task SP
-        "   jmp     done_save               \n\t"
+        "   mov.w   p_hkos_current_task, r14\n\t"
+        "   mov.w   r1,               0(r14)\n\t"
+        "   push    r15                     \n\t"
         "done_save:                         \n\t"
+        "   ret                             \n\t"
+    );
+}
 
-        "   call #hkos_scheduler_switch     \n\t" // change current task
-
+/******************************************************************************
+ * Restore context after a context switch
+ *
+ * This function will restore the context after a context switch. It must
+ * restore all the context of the new current task. Beware that the function
+ * is declared as naked, meaning that there will be no prologue or epilogue
+ * added by the compiler. Most probably the function will be written using
+ * inline assembly and some trickies will be needed to make it work properly.
+ * Check the already ported platforms for insights on how to do it.
+ *
+ *****************************************************************************/
+__attribute__((naked))
+void hkos_hal_restore_context( void ) {
+    asm (
         "hkos_hal_restore_context:          \n\t"
-        "   cmp     #0, p_hkos_current_task \n\t" // is there current task?
-        "   jz      go_idle                 \n\t" // if not, switch to idle
-        "   mov.w   p_hkos_current_task, r15\n\t" // otherwise, restore it
+        "   pop     r14                     \n\t" // drop the return address
+        "   cmp     #0, p_hkos_current_task \n\t"
+        "   jz      go_idle                 \n\t"
+        "   mov.w   p_hkos_current_task, r15\n\t"
         "   mov.w   0(r15),               r1\n\t"
         "   pop     r4                      \n\t"
         "   pop     r5                      \n\t"
@@ -646,6 +773,27 @@ void timer_a0_isr(void) {
         "done_restore:                      \n\t"
         "   reti                            \n\t"
     );
+}
+
+/******************************************************************************
+ * TIMER0_A0 ISR. This is the HalfKOS tick timer
+ *
+ * This interrupt is responsible for context switch and perform the following
+ * operations:
+ *
+ *      1. Save the current task's context (stored in hkos_ram.current_task)
+ *      2. Call hkos_scheduler_switch_context
+ *      3. Restore the new current task's context
+ *
+ * OBS: RETI is executed by hkos_hal_restore_context
+ *
+ *****************************************************************************/
+__attribute__((naked))
+__attribute__((interrupt(TIMER0_A0_VECTOR)))
+void timer_a0_isr(void) {
+    save_context_from_interrupt();
+    hkos_scheduler_switch_context();
+    hkos_hal_restore_context();
 }
 
 #endif // ARCH==MSP430G2553

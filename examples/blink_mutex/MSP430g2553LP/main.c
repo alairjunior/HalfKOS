@@ -20,7 +20,11 @@
  *
  *****************************************************************************/
 #include <hkos.h>
+#include <stddef.h>
 
+
+// Global variable to store the mutex
+void* g_mutex;
 
 /**************************************************************************
  * Helper function to blink a LED
@@ -35,9 +39,18 @@ __attribute__((optimize("O0")))
 static void blink( uint8_t pin )
 {
     while(1) {
-        hkos_gpio_toggle(pin);
+        hkos_lock_mutex(g_mutex);
+        hkos_gpio_write(pin, HIGH);
 
         uint32_t i = 655350;
+
+        do i--;
+        while(i != 0);
+
+        hkos_gpio_write(pin, LOW);
+        hkos_unlock_mutex(g_mutex);
+
+        i = 655350;
         do i--;
         while(i != 0);
     }
@@ -75,7 +88,7 @@ static void blink_error( void )
         hkos_gpio_toggle(2);
         hkos_gpio_toggle(14);
 
-        uint32_t i = 655350;
+        uint16_t i = 20000;
         do i--;
         while(i != 0);
     }
@@ -92,11 +105,15 @@ int main( void ) {
     hkos_gpio_write( 14, LOW );
     hkos_gpio_config( 2, OUTPUT );
     hkos_gpio_config( 14, OUTPUT );
+    g_mutex = hkos_create_mutex();
 
-    if ( hkos_add_task( blink_red, 16 ) == 0 )
+    if ( g_mutex == NULL )
         blink_error();
 
-    if ( hkos_add_task( blink_green, 16 ) == 0 )
+    if ( hkos_add_task( blink_red, 32 ) == NULL )
+        blink_error();
+
+    if ( hkos_add_task( blink_green, 32 ) == NULL )
         blink_error();
 
     // Should not return
