@@ -25,6 +25,9 @@
 
 #include <inttypes.h>
 
+#define HKOS_HAL_TICKS_IN_A_SECOND              1000
+
+
 // Configure the data type of the dynamic memory
 // allocation block header. Besides the size requested
 // during the allocation, the number of bytes of the data

@@ -100,6 +100,11 @@ extern hkos_task_t*  p_hkos_running_task_head;
 extern void* p_hkos_sp;
 
 /******************************************************************************
+ * Current tick count of HalfKOS
+ *****************************************************************************/
+extern uint16_t hkos_ticks_from_switch;
+
+/******************************************************************************
  * HalfKOS ram memory dynamic allocation block header structure
  *
  * Dynamic memory allocation within HalfKOS uses a header to store information
@@ -162,11 +167,19 @@ void  hkos_scheduler_remove_task( void* p_task_in );
 /******************************************************************************
  * Execute a context switch
  *
+ *****************************************************************************/
+void  hkos_scheduler_switch_context( void );
+
+
+/******************************************************************************
+ * Called by the HAL to mark the passage of time
+ *
  * This function must be called by the tick timer interrupt, which should be
  * implemented in HalfKOS HAL.
  *
  *****************************************************************************/
-void  hkos_scheduler_switch_context( void );
+void  hkos_scheduler_tick_timer( void );
+
 
 /******************************************************************************
  * Create a mutex

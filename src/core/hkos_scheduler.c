@@ -28,6 +28,7 @@
 #include <hkos_core.h>
 #include <hkos_hal.h>
 #include <hkos_scheduler.h>
+#include <hkos_config.h>
 
 // General Macros
 //
@@ -54,6 +55,11 @@ hkos_task_t* p_hkos_running_task_head;
  * Pointer to the HalfKOS stack pointer (idle task)
  *****************************************************************************/
 void* p_hkos_sp;
+
+/******************************************************************************
+ * Current tick count of HalfKOS
+ *****************************************************************************/
+uint16_t hkos_ticks_from_switch;
 
 /**************************************************************************
  * Helper function to allocate a memory in the HKOS RAM buffer
@@ -326,9 +332,6 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
 /******************************************************************************
  * Execute a context switch
  *
- * This function must be called by the tick timer interrupt, which should be
- * implemented in HalfKOS HAL.
- *
  * ************************************************************************/
 void hkos_scheduler_switch_context( void ) {
 
@@ -349,6 +352,22 @@ void hkos_scheduler_switch_context( void ) {
         } else {
             p_hkos_current_task = p_hkos_running_task_head;
         }
+    }
+    hkos_ticks_from_switch = 0;
+}
+
+/******************************************************************************
+ * Called by the HAL to mark the passage of time
+ *
+ * This function must be called by the tick timer interrupt, which should be
+ * implemented in HalfKOS HAL.
+ *
+ * ************************************************************************/
+void hkos_scheduler_tick_timer( void ) {
+    ++hkos_ticks_from_switch;
+    if (  hkos_ticks_from_switch >
+            ( HKOS_HAL_TICKS_IN_A_SECOND * HKOS_TIME_SLICE / 1000 ) ) {
+        hkos_scheduler_switch_context();
     }
 }
 

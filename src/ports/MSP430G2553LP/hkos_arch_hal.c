@@ -322,9 +322,13 @@ static inline void init_timerA( void ) {
     TACTL = MC_0;
 
     // Set the counter
-    TA0CCR0 = 1000*HKOS_TIME_SLICE;
+    // Since system is going to be configured to up and down mode,
+    // it will count twice TA0CCR0 to get an interrupt. So, each
+    // each unit in TA0CCR0 will be 1us
+    TA0CCR0 = 1000000/HKOS_HAL_TICKS_IN_A_SECOND;
 
     // DCO, DCO/8, up and down mode
+    // 2MHz oscillator
     TACTL = TASSEL_2 | ID_3 | MC_3;
 }
 
@@ -534,7 +538,7 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  * handle the context switch must do the following operations:
  *
  *      1. Save the current task's context (stored in p_hkos_current_task)
- *      2. Call hkos_scheduler_switch_context
+ *      2. Call hkos_scheduler_tick_timer
  *      3. Restore the new current task's context
  *
  *****************************************************************************/
@@ -782,7 +786,7 @@ void hkos_hal_restore_context( void ) {
  * operations:
  *
  *      1. Save the current task's context (stored in hkos_ram.current_task)
- *      2. Call hkos_scheduler_switch_context
+ *      2. Call hkos_scheduler_tick_timer
  *      3. Restore the new current task's context
  *
  * OBS: RETI is executed by hkos_hal_restore_context
@@ -792,7 +796,7 @@ __attribute__((naked))
 __attribute__((interrupt(TIMER0_A0_VECTOR)))
 void timer_a0_isr(void) {
     save_context_from_interrupt();
-    hkos_scheduler_switch_context();
+    hkos_scheduler_tick_timer();
     hkos_hal_restore_context();
 }
 

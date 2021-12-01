@@ -27,7 +27,7 @@
 #include <stdbool.h>
 
 // Configure HalfKOS time slice
-#define HKOS_TIME_SLICE             2 // ms
+#define HKOS_TIME_SLICE             5 // ms
 
 // Paint the stack when creating the task for stack usage
 // analysis

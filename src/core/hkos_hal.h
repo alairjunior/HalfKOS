@@ -44,9 +44,9 @@
  *
  * 3. FUNCTIONS TO BE CALLED :
  *
- *      - hkos_scheduler_switch_context: must be called from the interrupt
+ *      - hkos_scheduler_tick_timer: must be called from the interrupt
  *        that handles the context switch, after saving the context and
- *        before restoring the context of the next thread.
+ *        before restoring the context of the next task.
  *
  *
  * See the description of functions for details on how to implement them.
@@ -190,7 +190,7 @@ void hkos_hal_restore_context( void ) __attribute__((naked));
  * handle the context switch must do the following operations:
  *
  *      1. Save the current task's context (stored in hkos_ram.current_task)
- *      2. Call hkos_scheduler_switch_context
+ *      2. Call hkos_scheduler_tick_timer
  *      3. Restore the new current task's context
  *
  *****************************************************************************/
