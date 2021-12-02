@@ -42,6 +42,14 @@ void hkos_init( void ) {
 }
 
 /******************************************************************************
+ * Start the HalfKOS scheduler
+ *
+ *****************************************************************************/
+void hkos_start( void ) {
+    hkos_hal_jump_to_os();
+}
+
+/******************************************************************************
  * Add a task to HalfKOS scheduler
  *
  * @param[in]   p_task_func     Pointer to the task address
@@ -51,7 +59,10 @@ void hkos_init( void ) {
  *
  *****************************************************************************/
 void* hkos_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
-    return hkos_scheduler_add_task( p_task_func, stack_size );
+    hkos_hal_enter_critical_section();
+    void* ret = hkos_scheduler_add_task( p_task_func, stack_size );
+    hkos_hal_exit_critical_section();
+    return ret;
 }
 
 /******************************************************************************
@@ -62,17 +73,10 @@ void* hkos_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
  *
  *****************************************************************************/
 void hkos_remove_task( void* p_task_in ) {
+    hkos_hal_enter_critical_section();
     hkos_scheduler_remove_task( p_task_in );
+    hkos_hal_exit_critical_section();
 }
-
-/******************************************************************************
- * Start the HalfKOS scheduler
- *
- *****************************************************************************/
-void hkos_start( void ) {
-    hkos_hal_jump_to_os();
-}
-
 
 /******************************************************************************
  * Configure a GPIO pin
@@ -140,7 +144,10 @@ gpio_value_t hkos_gpio_read( uint8_t pin ) {
  *
  * ***************************************************************************/
 void* hkos_create_mutex( void ) {
-    return hkos_scheduler_create_mutex();
+    hkos_hal_enter_critical_section();
+    void* ret = hkos_scheduler_create_mutex();
+    hkos_hal_exit_critical_section();
+    return ret;
 }
 
 
@@ -153,7 +160,9 @@ void* hkos_create_mutex( void ) {
  *
  * ***************************************************************************/
 void hkos_lock_mutex( void* p_mutex ) {
+    hkos_hal_enter_critical_section();
     hkos_scheduler_lock_mutex( (hkos_mutex_t*)p_mutex );
+    hkos_hal_exit_critical_section();
 }
 
 /******************************************************************************
@@ -163,7 +172,9 @@ void hkos_lock_mutex( void* p_mutex ) {
  *
  * ***************************************************************************/
 void hkos_unlock_mutex( void* p_mutex ) {
+    hkos_hal_enter_critical_section();
     hkos_scheduler_unlock_mutex( (hkos_mutex_t*)p_mutex );
+    hkos_hal_exit_critical_section();
 }
 
 /******************************************************************************
@@ -173,5 +184,19 @@ void hkos_unlock_mutex( void* p_mutex ) {
  *
  * ***************************************************************************/
 void hkos_destroy_mutex( void* p_mutex ) {
+    hkos_hal_enter_critical_section();
     hkos_scheduler_destroy_mutex( (hkos_mutex_t*)p_mutex );
+    hkos_hal_exit_critical_section();
+}
+
+/******************************************************************************
+ * Suspend the callee for the specified time
+ *
+ * @param[in]       time_ms     The time to suspend the task in milliseconds
+ *
+ * ***************************************************************************/
+void hkos_sleep( uint16_t time_ms ) {
+    hkos_hal_enter_critical_section();
+    hkos_scheduler_sleep( time_ms );
+    hkos_hal_exit_critical_section();
 }

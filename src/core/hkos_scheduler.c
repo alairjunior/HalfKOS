@@ -39,7 +39,7 @@
 /******************************************************************************
  * RAM buffer definition
  *****************************************************************************/
-hkos_ram_t                  hkos_ram;
+hkos_ram_t hkos_ram;
 
 /******************************************************************************
  * Definition of the pointer to the current task
@@ -47,9 +47,14 @@ hkos_ram_t                  hkos_ram;
 hkos_task_t* p_hkos_current_task;
 
 /******************************************************************************
+ * Definition of the pointer to the next task
+ *****************************************************************************/
+hkos_task_t* p_hkos_next_task;
+
+/******************************************************************************
  * Pointer to the head of the running tasks list
  *****************************************************************************/
-hkos_task_t* p_hkos_running_task_head;
+hkos_task_t* p_hkos_running_tasks;
 
 /******************************************************************************
  * Pointer to the HalfKOS stack pointer (idle task)
@@ -85,8 +90,6 @@ static void* mem_alloc( hkos_dmem_header_t size ) {
     // The block size needs to include the header size and must be aligned
     size = align( size + sizeof(hkos_dmem_header_t) );
 
-    hkos_hal_enter_critical_section();
-
     void* address = NULL;
     do {
         while( block_addr <= last_ram_addr ) {
@@ -114,8 +117,6 @@ static void* mem_alloc( hkos_dmem_header_t size ) {
             }
         }
     } while(0);
-
-    hkos_hal_exit_critical_section();
 
     // no block available for the requested size
     return address;
@@ -148,7 +149,6 @@ static void mem_free( void* p_mem ) {
     if ( ( (uint8_t*)p_mem >= block_addr ) &&
             ( (uint8_t*)p_mem <= last_ram_addr - sizeof(hkos_dmem_header_t) ) ) {
 
-        hkos_hal_enter_critical_section();
         // mark the block as not used
         ((hkos_ram_block_t*)p_mem)->header.used = false;
 
@@ -176,13 +176,37 @@ static void mem_free( void* p_mem ) {
             block_addr += block->header.size;
             break;
         }
-
-        hkos_hal_exit_critical_section();
     }
 }
 
 /**************************************************************************
- * Helper function to add a task to a list
+ * Helper function to find the previous task on a list
+ *
+ * Caller is responsible for making sure this will not be preempted
+ *
+ * @param[in]       p_task          The task to be added
+ * @param[inout]    p_head          The list the task is being added to
+ *
+ * @return      Pointer to the previous task or NULL if no previous
+ *
+ * ************************************************************************/
+static hkos_task_t* find_previous( hkos_task_t* p_task, hkos_task_t** pp_head ) {
+
+    if ( p_task == *pp_head )
+        return NULL;
+
+    hkos_task_t* search = *pp_head;
+    for (; search != NULL; search = search->p_next ) {
+        if ( search->p_next == p_task )
+            return search;
+    }
+
+    return NULL;
+
+}
+
+/**************************************************************************
+ * Helper function to add a task to the head of a list
  *
  * Caller is responsible for making sure this will not be preempted
  *
@@ -190,18 +214,43 @@ static void mem_free( void* p_mem ) {
  * @param[inout]    p_head          The list the task is being added to
  *
  * ************************************************************************/
-static void add_task_to_list( hkos_task_t* p_task, hkos_task_t** pp_head ) {
+static void add_task_to_head( hkos_task_t* p_task, hkos_task_t** pp_head ) {
 
     if ( p_task == NULL || pp_head == NULL )
         return;
 
     // Add the task to the head of the list
-    // Head is easier because we already have the pointer
     p_task->p_next = *pp_head;
-    if ( *pp_head != NULL )
-        (*pp_head)->p_prev = p_task;
-    p_task->p_prev = NULL;
     *pp_head = p_task;
+}
+
+/**************************************************************************
+ * Helper function to add a task to the tail of a list
+ *
+ * Caller is responsible for making sure this will not be preempted
+ *
+ * @param[in]       p_task          The task to be added
+ * @param[inout]    p_head          The list the task is being added to
+ *
+ * ************************************************************************/
+static void add_task_to_tail( hkos_task_t* p_task, hkos_task_t** pp_head ) {
+
+    if ( p_task == NULL || pp_head == NULL )
+        return;
+
+    if ( *pp_head == NULL ) {
+        *pp_head = p_task;
+    } else {
+        // find the tail
+        hkos_task_t* tail = *pp_head;
+        for (; tail->p_next != NULL; tail = tail->p_next);
+
+        // Add the task to the tail of the list
+        tail->p_next = p_task;
+    }
+
+    // task is the new tail
+    p_task->p_next = NULL;
 }
 
 /**************************************************************************
@@ -218,18 +267,33 @@ static void remove_task_from_list( hkos_task_t* p_task, hkos_task_t** pp_head ) 
     if ( p_task == NULL || pp_head == NULL || *pp_head == NULL )
         return;
 
-    if ( *pp_head == p_task ) {
+    if ( p_task == *pp_head ){
         *pp_head = p_task->p_next;
+    } else {
+        hkos_task_t* previous = find_previous( p_task, pp_head );
+        if ( previous != NULL ) {
+            previous->p_next = p_task->p_next;
+        }
     }
 
-    if ( p_task->p_next != NULL )
-        p_task->p_next->p_prev = p_task->p_prev;
-
-    if ( p_task->p_prev != NULL )
-        p_task->p_prev->p_next = p_task->p_next;
-
+    // remove links from the task
     p_task->p_next = NULL;
-    p_task->p_prev = NULL;
+}
+
+/**************************************************************************
+ * Helper function to remove a task from the running list
+ *
+ * Caller is responsible for making sure this will not be preempted
+ *
+ * @param[in]       p_task          The task to be removed
+ *
+ * ************************************************************************/
+static void remove_task_from_running_list( hkos_task_t* p_task ) {
+
+    if ( p_task != NULL && p_task == p_hkos_next_task ) {
+        p_hkos_next_task = p_task->p_next;
+    }
+    remove_task_from_list( p_task, &p_hkos_running_tasks );
 }
 
 /**************************************************************************
@@ -241,7 +305,8 @@ static void remove_task_from_list( hkos_task_t* p_task, hkos_task_t** pp_head ) 
 void hkos_scheduler_init( void ) {
     // no tasks
     p_hkos_current_task = NULL;
-    p_hkos_running_task_head = NULL;
+    p_hkos_next_task = NULL;
+    p_hkos_running_tasks = NULL;
 
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
@@ -288,9 +353,8 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
                                             p_task->p_sp, p_task_func, stack_size
                                         ) ) )
         {
-            hkos_hal_enter_critical_section();
-            add_task_to_list( p_task, &p_hkos_running_task_head );
-            hkos_hal_exit_critical_section();
+            // It is a round-robin. So, it doesn't matter where you add the task
+            add_task_to_head( p_task, &p_hkos_running_tasks );
             return p_task;
         }
 
@@ -310,8 +374,6 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
  * @param[in]   p_task_in       Pointer to the task structure returned by
  *                              hkos_add_task
  *
- * TODO: Even if thread safe, need to solve the issue when the thread
- *       removes itself
  * TODO: What if the task to be removed is in a list other than running?
  *
  *****************************************************************************/
@@ -321,9 +383,7 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
 
         hkos_task_t* p_task = (hkos_task_t*)p_task_in;
 
-        hkos_hal_enter_critical_section();
-        remove_task_from_list( p_task, &p_hkos_running_task_head );
-        hkos_hal_exit_critical_section();
+        remove_task_from_running_list( p_task );
 
         mem_free(p_task);
     }
@@ -335,24 +395,21 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
  * ************************************************************************/
 void hkos_scheduler_switch_context( void ) {
 
-    if ( p_hkos_running_task_head != NULL ) {
-        if ( p_hkos_current_task != NULL ) {
-
-            hkos_task_t* old_task = p_hkos_current_task;
-
-            p_hkos_current_task = p_hkos_current_task->p_next;
-            if ( p_hkos_current_task == NULL )
-                p_hkos_current_task = p_hkos_running_task_head;
-
-            // remove the old task if it was delayed
-            if ( old_task->delay_ticks > 0 ) {
-                remove_task_from_list( old_task, &p_hkos_running_task_head );
-            }
-
-        } else {
-            p_hkos_current_task = p_hkos_running_task_head;
-        }
+    if ( p_hkos_running_tasks == NULL ) {
+        p_hkos_current_task = NULL;
+        p_hkos_next_task = NULL;
+        return; // no task to run
     }
+
+    p_hkos_current_task = p_hkos_next_task;
+
+    if ( p_hkos_current_task == NULL ) {
+        p_hkos_current_task = p_hkos_running_tasks;
+    }
+
+    p_hkos_next_task = p_hkos_current_task->p_next;
+
+
     hkos_ticks_from_switch = 0;
 }
 
@@ -417,32 +474,16 @@ void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex ) {
     if ( p_hkos_current_task == NULL )
         while(1);
 
-    // We are manipulating global structures that cannot be protected by
-    // mutexes, so we use HAL critical sections
-    hkos_hal_enter_critical_section();
     if ( p_mutex->locked ) {
-
-        // find the end of the list
-        hkos_task_t* p_last_waiting_task = p_mutex->p_task;
-
-        if ( p_last_waiting_task == NULL ) {
-            p_mutex->p_task = p_hkos_current_task;
-        } else {
-            while( p_last_waiting_task->p_next != NULL )
-                p_last_waiting_task = p_last_waiting_task->p_next;
-
-            p_last_waiting_task->p_next = p_hkos_current_task;
-        }
-
-        p_hkos_current_task->delay_ticks = -1; // timeout infinite
-
+        remove_task_from_running_list( p_hkos_current_task );
+        add_task_to_tail( p_hkos_current_task, &p_mutex->p_task );
         hkos_scheduler_yield();
 
     } else {
-        p_mutex->locked = true;
-    }
 
-    hkos_hal_exit_critical_section();
+        p_mutex->locked = true;
+
+    }
 }
 
 /******************************************************************************
@@ -454,22 +495,17 @@ void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex ) {
 void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex ) {
 
     if ( p_mutex != NULL ) {
-        hkos_hal_enter_critical_section();
 
         if ( p_mutex->p_task != NULL ) {
-            hkos_task_t* released_task = p_mutex->p_task;
-
-            p_mutex->p_task = p_mutex->p_task->p_next;
-
-            released_task->delay_ticks = 0;
-            add_task_to_list( released_task, &p_hkos_running_task_head );
+            hkos_task_t* released = p_mutex->p_task;
+            remove_task_from_list( p_mutex->p_task, &p_mutex->p_task );
+            add_task_to_head( released, &p_hkos_running_tasks );
         }
 
         if ( p_mutex->p_task == NULL )
             p_mutex->locked = false;
-
-        hkos_hal_exit_critical_section();
     }
+
 }
 
 /******************************************************************************
@@ -479,7 +515,21 @@ void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex ) {
  *
  * ***************************************************************************/
 void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex ) {
+
     if ( p_mutex != NULL && p_mutex->locked == false ) {
         mem_free( p_mutex );
     }
+
 }
+
+/******************************************************************************
+ * Suspend the callee for the specified time
+ *
+ * @param[in]       time_ms     The time to suspend the task in milliseconds
+ *
+ * ***************************************************************************/
+void hkos_scheduler_sleep( uint16_t time_ms ) {
+
+}
+
+

@@ -128,7 +128,7 @@ void* hkos_create_mutex( void );
  *
  * If mutex is not free, suspend the task until it is free.
  *
- * @param[in]       Pointer to the mutex
+ * @param[in]       p_mutex     Pointer to the mutex
  *
  * ***************************************************************************/
 void hkos_lock_mutex( void* p_mutex );
@@ -137,7 +137,7 @@ void hkos_lock_mutex( void* p_mutex );
 /******************************************************************************
  * Unlock a mutex
  *
- * @param[in]       Pointer to the mutex
+ * @param[in]       p_mutex     Pointer to the mutex
  *
  * ***************************************************************************/
 void hkos_unlock_mutex( void* p_mutex );
@@ -146,9 +146,19 @@ void hkos_unlock_mutex( void* p_mutex );
 /******************************************************************************
  * Destroy a mutex
  *
- * @param[in]       Pointer to the mutex
+ * @param[in]       p_mutex     Pointer to the mutex
  *
  * ***************************************************************************/
 void hkos_destroy_mutex( void* p_mutex );
+
+
+/******************************************************************************
+ * Suspend the callee for the specified time
+ *
+ * @param[in]       time_ms     The time to suspend the task in milliseconds
+ *
+ * ***************************************************************************/
+void hkos_sleep( uint16_t time_ms );
+
 
 #endif //__HKOS_H

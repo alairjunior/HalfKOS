@@ -35,7 +35,6 @@
 typedef struct hkos_task_t hkos_task_t; // forward declaration due to pointers
 typedef struct hkos_task_t {
     void*               p_sp;
-    hkos_task_t*        p_prev;
     hkos_task_t*        p_next;
     uint16_t            delay_ticks;
 } hkos_task_t;
@@ -90,19 +89,9 @@ extern hkos_ram_t hkos_ram;
 extern hkos_task_t*  p_hkos_current_task;
 
 /******************************************************************************
- * Pointer to the head of the running tasks list
- *****************************************************************************/
-extern hkos_task_t*  p_hkos_running_task_head;
-
-/******************************************************************************
  * Pointer to the HalfKOS stack pointer (idle task)
  *****************************************************************************/
 extern void* p_hkos_sp;
-
-/******************************************************************************
- * Current tick count of HalfKOS
- *****************************************************************************/
-extern uint16_t hkos_ticks_from_switch;
 
 /******************************************************************************
  * HalfKOS ram memory dynamic allocation block header structure
@@ -218,5 +207,13 @@ void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex );
  * ***************************************************************************/
 void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex );
 
+
+/******************************************************************************
+ * Suspend the callee for the specified time
+ *
+ * @param[in]       time_ms     The time to suspend the task in milliseconds
+ *
+ * ***************************************************************************/
+void hkos_scheduler_sleep( uint16_t time_ms );
 
 #endif // __HKOS_SCHEDULER_H

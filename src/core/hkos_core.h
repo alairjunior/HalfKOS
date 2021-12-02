@@ -24,6 +24,8 @@
 
 #include <hkos_arch_hal.h>
 
+#define HKOS_TIMEOUT_INFINITE               0xFFFF
+
 /******************************************************************************
  * Size data type is the same as the dynamic header size data type
  *
