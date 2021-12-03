@@ -90,9 +90,8 @@ static void blink_error( void )
  * Example Entry point
  *
  * ************************************************************************/
-int main( void ) {
+void setup( void ) {
 
-    hkos_init();
     hkos_gpio_write( 2, LOW );
     hkos_gpio_write( 14, LOW );
     hkos_gpio_config( 2, OUTPUT );
@@ -107,9 +106,4 @@ int main( void ) {
     if ( hkos_add_task( blink_green, 32 ) == NULL )
         blink_error();
 
-    // Should not return
-    hkos_start();
-
-    // We shouldn't be here
-    blink_error();
 }

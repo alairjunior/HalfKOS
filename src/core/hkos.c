@@ -31,6 +31,15 @@
 
 
 /******************************************************************************
+ * Users setup function
+ *
+ * This function is called by HalfKOS before starting the scheduler so the user
+ * can setup the system, like creating tasks.
+ *
+ *****************************************************************************/
+extern void setup( void );
+
+/******************************************************************************
  * Initialize HalfKOS
  *
  * This function must be called before calling any other HalfKOS function.
@@ -199,4 +208,16 @@ void hkos_sleep( uint16_t time_ms ) {
     hkos_hal_enter_critical_section();
     hkos_scheduler_sleep( time_ms );
     hkos_hal_exit_critical_section();
+}
+
+/******************************************************************************
+ * Entry point of HalfKOS
+ *
+ * ***************************************************************************/
+int main( void ) {
+    hkos_init();
+
+    setup();
+
+    hkos_start();
 }
