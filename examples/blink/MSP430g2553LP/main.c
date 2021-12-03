@@ -31,15 +31,11 @@
  * @param[in]   pin    pin number
  *
  * ************************************************************************/
-__attribute__((optimize("O0")))
 static void blink( uint8_t pin )
 {
     while(1) {
-        hkos_gpio_toggle(pin);
-
-        uint32_t i = 655350;
-        do i--;
-        while(i != 0);
+        hkos_gpio_toggle( pin );
+        hkos_sleep( 1000 );
     }
 }
 
@@ -49,7 +45,7 @@ static void blink( uint8_t pin )
  * ************************************************************************/
 static void blink_green( void )
 {
-    blink(14);
+    blink( 14 );
 }
 
 /**************************************************************************
@@ -58,7 +54,7 @@ static void blink_green( void )
  * ************************************************************************/
 static void blink_red( void )
 {
-    blink(2);
+    blink( 2 );
 }
 
 /**************************************************************************
@@ -68,16 +64,13 @@ static void blink_red( void )
  * optimized out.
  *
  * ************************************************************************/
-__attribute__((optimize("O0")))
 static void blink_error( void )
 {
     while(1) {
-        hkos_gpio_toggle(2);
-        hkos_gpio_toggle(14);
+        hkos_gpio_toggle( 2 );
+        hkos_gpio_toggle( 14 );
 
-        uint32_t i = 655350;
-        do i--;
-        while(i != 0);
+        hkos_sleep( 100 );
     }
 }
 

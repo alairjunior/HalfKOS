@@ -186,8 +186,6 @@ void* hkos_scheduler_create_mutex( void );
  *
  * @param[in]       Pointer to the mutex
  *
- * TODO: Add timeout option
- *
  * ***************************************************************************/
 void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex );
 

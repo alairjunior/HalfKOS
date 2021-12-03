@@ -90,7 +90,7 @@ build:
 debug: CXXFLAGS += -DDEBUG -g -Og
 debug: all
 
-release: CXXFLAGS += -O3
+release: CXXFLAGS += -O2
 release: all
 
 run:

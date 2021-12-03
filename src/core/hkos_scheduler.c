@@ -57,6 +57,11 @@ hkos_task_t* p_hkos_next_task;
 hkos_task_t* p_hkos_running_tasks;
 
 /******************************************************************************
+ * Pointer to the head of the waiting tasks list
+ *****************************************************************************/
+hkos_task_t* p_hkos_waiting_tasks;
+
+/******************************************************************************
  * Pointer to the HalfKOS stack pointer (idle task)
  *****************************************************************************/
 void* p_hkos_sp;
@@ -296,6 +301,28 @@ static void remove_task_from_running_list( hkos_task_t* p_task ) {
     remove_task_from_list( p_task, &p_hkos_running_tasks );
 }
 
+
+/**************************************************************************
+ * Helper function to update the waiting list
+ *
+ * Caller is responsible for making sure this will not be preempted
+ *
+ * ************************************************************************/
+static void update_waiting_list( void ) {
+    hkos_task_t* task = p_hkos_waiting_tasks;
+
+    while( task != NULL ) {
+        if ( --task->delay_ticks == 0 ) {
+            hkos_task_t* next = task->p_next;
+            remove_task_from_list( task, &p_hkos_waiting_tasks );
+            add_task_to_head( task, &p_hkos_running_tasks );
+            task = next;
+        } else {
+            task = task->p_next;
+        }
+    }
+}
+
 /**************************************************************************
  * Initialize the HalfKOS Scheduler
  *
@@ -307,6 +334,7 @@ void hkos_scheduler_init( void ) {
     p_hkos_current_task = NULL;
     p_hkos_next_task = NULL;
     p_hkos_running_tasks = NULL;
+    p_hkos_waiting_tasks = NULL;
 
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
@@ -325,8 +353,6 @@ void hkos_scheduler_init( void ) {
  * @param[in]   stack_size      Size of the task's size
  *
  * @return  Pointer to the task structure or NULL if task cannot be created.
- *
- * TODO: Make this safe to be called when scheduler is running
  *
  *****************************************************************************/
 void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
@@ -421,6 +447,9 @@ void hkos_scheduler_switch_context( void ) {
  *
  * ************************************************************************/
 void hkos_scheduler_tick_timer( void ) {
+
+    update_waiting_list();
+
     ++hkos_ticks_from_switch;
     if (  hkos_ticks_from_switch >
             ( HKOS_HAL_TICKS_IN_A_SECOND * HKOS_TIME_SLICE / 1000 ) ) {
@@ -529,7 +558,14 @@ void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex ) {
  *
  * ***************************************************************************/
 void hkos_scheduler_sleep( uint16_t time_ms ) {
+    p_hkos_current_task->delay_ticks =
+                 time_ms * ( 1000 / ( HKOS_HAL_TICKS_IN_A_SECOND ) );
 
+    if ( p_hkos_current_task->delay_ticks > 0 ) {
+        remove_task_from_running_list( p_hkos_current_task );
+        add_task_to_head( p_hkos_current_task, &p_hkos_waiting_tasks );
+        hkos_scheduler_yield();
+    }
 }
 
 
