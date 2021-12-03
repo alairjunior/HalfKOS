@@ -537,7 +537,8 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  * and start the timer to do the context switch operation. The interrupt to
  * handle the context switch must do the following operations:
  *
- *      1. Save the current task's context (stored in p_hkos_current_task)
+ *      1. Save the current task's context (stored in
+ *              hkos_ram.runtime_data.p_current_task)
  *      2. Call hkos_scheduler_tick_timer
  *      3. Restore the new current task's context
  *
@@ -587,7 +588,8 @@ void hkos_hal_jump_to_os( void ) {
         "jmp        hkos_idle               \n\t" // when idle, we do nothing
         :
         : "i" (&hkos_ram.os_stack[0]), "i" (sizeof(hkos_ram.os_stack)),
-                    "m" (p_hkos_sp), "i" (GIE+LPM1_bits), "i" (GIE)
+                    "m" (hkos_ram.runtime_data.p_idle_sp),
+                    "i" (GIE+LPM1_bits), "i" (GIE)
         :
     );
 }
@@ -658,13 +660,13 @@ static void save_context_from_interrupt( void ) {
     //      6. Save the stack pointer, saving the entire context
     //      7. Now, we push the return PC (stored in R14) to the TOS
     //      8. We execute a ret, that will return to the calling function
-    asm (
+    asm volatile (
         "hkos_hal_save_context_int:         \n\t"
-        "   cmp     #0, p_hkos_current_task \n\t"
+        "   cmp     #0,               %0    \n\t"
         "   jz      done_save_int           \n\t"
         "   push    r14                     \n\t"
-        "   mov.w   2(r1),               r14\n\t"
-        "   mov.w   r15,               2(r1)\n\t"
+        "   mov.w   2(r1),           r14    \n\t"
+        "   mov.w   r15,           2(r1)    \n\t"
         "   push    r13                     \n\t"
         "   push    r12                     \n\t"
         "   push    r11                     \n\t"
@@ -675,11 +677,15 @@ static void save_context_from_interrupt( void ) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   p_hkos_current_task, r15\n\t"
-        "   mov.w   r1,               0(r15)\n\t"
+        "   mov.w   %0,               r15   \n\t"
+        "   mov.w   r1,          %c1(r15)   \n\t"
         "   push    r14                     \n\t"
         "done_save_int:                     \n\t"
         "   ret                             \n\t"
+            :
+            :   "m" ( hkos_ram.runtime_data.p_current_task ),
+                "i" ( offsetof( hkos_task_t, p_sp ) )
+            :
     );
 }
 
@@ -713,13 +719,13 @@ void hkos_hal_save_context( void ) {
     //      6. Save the stack pointer, saving the entire context
     //      7. Now, we push the return PC (stored in R15) to the TOS
     //      8. We execute a ret, that will return to the calling function
-    asm (
+    asm volatile (
         "hkos_hal_save_context:             \n\t"
-        "   cmp     #0, p_hkos_current_task \n\t"
+        "   cmp     #0,               %0    \n\t"
         "   jz      done_save               \n\t"
         "   push    r15                     \n\t"
-        "   mov.w   2(r1),               r15\n\t"
-        "   mov.w   r2,                 2(r1)\n\t"
+        "   mov.w   2(r1),           r15    \n\t"
+        "   mov.w   r2,            2(r1)    \n\t"
         "   push    r14                     \n\t"
         "   push    r13                     \n\t"
         "   push    r12                     \n\t"
@@ -731,11 +737,15 @@ void hkos_hal_save_context( void ) {
         "   push    r6                      \n\t"
         "   push    r5                      \n\t"
         "   push    r4                      \n\t"
-        "   mov.w   p_hkos_current_task, r14\n\t"
-        "   mov.w   r1,               0(r14)\n\t"
+        "   mov.w   %0,              r14    \n\t"
+        "   mov.w   r1,         %c1(r14)    \n\t"
         "   push    r15                     \n\t"
         "done_save:                         \n\t"
         "   ret                             \n\t"
+            :
+            :   "m" (hkos_ram.runtime_data.p_current_task),
+                "i" ( offsetof( hkos_task_t, p_sp ) )
+            :
     );
 }
 
@@ -755,10 +765,10 @@ void hkos_hal_restore_context( void ) {
     asm (
         "hkos_hal_restore_context:          \n\t"
         "   pop     r14                     \n\t" // drop the return address
-        "   cmp     #0, p_hkos_current_task \n\t"
+        "   cmp     #0,               %0    \n\t"
         "   jz      go_idle                 \n\t"
-        "   mov.w   p_hkos_current_task, r15\n\t"
-        "   mov.w   0(r15),               r1\n\t"
+        "   mov.w   %0,              r15    \n\t"
+        "   mov.w   %c1(r15),         r1    \n\t"
         "   pop     r4                      \n\t"
         "   pop     r5                      \n\t"
         "   pop     r6                      \n\t"
@@ -773,9 +783,14 @@ void hkos_hal_restore_context( void ) {
         "   pop     r15                     \n\t"
         "   jmp     done_restore            \n\t"
         "go_idle:                           \n\t"
-        "   mov.w   p_hkos_sp,            r1\n\t"
+        "   mov.w   %2,               r1    \n\t"
         "done_restore:                      \n\t"
         "   reti                            \n\t"
+            :
+            :   "m" ( hkos_ram.runtime_data.p_current_task ),
+                "i" ( offsetof( hkos_task_t, p_sp ) ),
+                "m" ( hkos_ram.runtime_data.p_idle_sp )
+            :
     );
 }
 

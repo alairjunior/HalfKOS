@@ -43,7 +43,7 @@
 // use 4 bytes less and keep the default scat file.
 // If you need that 4 bytes, change the scat file and
 // you'll be able to use 512 bytes here.
-#define HKOS_AVAILABLE_RAM          480 // bytes
+#define HKOS_AVAILABLE_RAM          504 // bytes
 
 
 // Configure how many bytes are available for
@@ -51,6 +51,6 @@
 // This must be HKOS_AVAILABLE_RAM minus the number
 // of bytes HKOS has for its own hosekeeping
 //
-#define HKOS_DYNAMIC_RAM            300 // bytes
+#define HKOS_DYNAMIC_RAM            256 // bytes
 
 #endif // __HKOS_CONFIG_H

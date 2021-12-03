@@ -56,6 +56,7 @@ static void blink( uint8_t pin )
  * ************************************************************************/
 static void blink_green( void )
 {
+    g_mutex = hkos_create_mutex();
     blink( 14 );
 }
 
@@ -96,7 +97,6 @@ int main( void ) {
     hkos_gpio_write( 14, LOW );
     hkos_gpio_config( 2, OUTPUT );
     hkos_gpio_config( 14, OUTPUT );
-    g_mutex = hkos_create_mutex();
 
     if ( g_mutex == NULL )
         blink_error();

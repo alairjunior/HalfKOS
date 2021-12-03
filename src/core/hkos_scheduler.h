@@ -53,6 +53,21 @@ typedef struct hkos_mutex_t {
 
 
 /******************************************************************************
+ * HalfKOS runtime structure
+ *
+ * Defines how the runtime data of HalfKOS is organized.
+ *
+ *****************************************************************************/
+typedef struct hkos_runtime_data_t {
+    hkos_task_t*        p_current_task;
+    hkos_task_t*        p_next_task;
+    hkos_task_t*        p_running_tasks_list;
+    hkos_task_t*        p_waiting_tasks_list;
+    void*               p_idle_sp;
+    uint16_t            ticks_from_switch;
+} hkos_runtime_data_t;
+
+/******************************************************************************
  * HalfKOS ram memory structure
  *
  * hkos_ram_t is declared in such a way that it uses all memory available to
@@ -67,14 +82,13 @@ typedef struct hkos_mutex_t {
  *
  *****************************************************************************/
 typedef struct hkos_ram_t {
-    uint8_t    dynamic_buffer[ HKOS_DYNAMIC_RAM ];
-    uint8_t    os_stack[
-                            HKOS_AVAILABLE_RAM
-                            - HKOS_DYNAMIC_RAM
-                            - sizeof( hkos_task_t* ) // p_hkos_current_task
-                            - sizeof( hkos_task_t* ) // p_hkos_task_list_head
-                            - sizeof( void* )        // p_os_sp
-                        ];
+    hkos_runtime_data_t     runtime_data;
+    uint8_t                 dynamic_buffer[ HKOS_DYNAMIC_RAM ];
+    uint8_t                 os_stack[
+                                        HKOS_AVAILABLE_RAM
+                                        - HKOS_DYNAMIC_RAM
+                                        - sizeof( hkos_runtime_data_t )
+                                    ];
 } hkos_ram_t;
 
 /******************************************************************************
@@ -82,16 +96,6 @@ typedef struct hkos_ram_t {
  * the context, which is done by the tick timer ISR
  *****************************************************************************/
 extern hkos_ram_t hkos_ram;
-
-/******************************************************************************
- * Pointer to the current task
- *****************************************************************************/
-extern hkos_task_t*  p_hkos_current_task;
-
-/******************************************************************************
- * Pointer to the HalfKOS stack pointer (idle task)
- *****************************************************************************/
-extern void* p_hkos_sp;
 
 /******************************************************************************
  * HalfKOS ram memory dynamic allocation block header structure
