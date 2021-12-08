@@ -39,6 +39,7 @@ HKOS_DIR  := ../../..
 CXX      := $(GCC_DIR)/bin/msp430-elf-gcc
 OBJDUMP  := $(GCC_DIR)/bin/msp430-elf-objdump
 DEBUGGER := $(TOOLS_DIR)/mspdebug/mspdebug
+SIZE	 := $(GCC_DIR)/bin/msp430-elf-size
 BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 SRC_DIR  := $(HKOS_DIR)/src
@@ -99,6 +100,9 @@ run:
 
 disassemble:
 	$(OBJDUMP) -S --disassemble $(APP_DIR)/$(BINARY) > $(APP_DIR)/$(TARGET).dump
+
+size:
+	$(SIZE) $(APP_DIR)/$(BINARY)
 
 clean:
 	-@rm -rvf $(OBJ_DIR)/*
