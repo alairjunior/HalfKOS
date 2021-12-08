@@ -83,12 +83,11 @@ typedef struct hkos_runtime_data_t {
  *****************************************************************************/
 typedef struct hkos_ram_t {
     hkos_runtime_data_t     runtime_data;
-    uint8_t                 dynamic_buffer[ HKOS_DYNAMIC_RAM ];
-    uint8_t                 os_stack[
-                                        HKOS_AVAILABLE_RAM
-                                        - HKOS_DYNAMIC_RAM
-                                        - sizeof( hkos_runtime_data_t )
-                                    ];
+    uint8_t                 dynamic_buffer[ HKOS_AVAILABLE_RAM
+                                            - HKOS_IDLE_STACK
+                                            - sizeof( hkos_runtime_data_t )
+                                         ];
+    uint8_t                 os_stack[ HKOS_IDLE_STACK ];
 } hkos_ram_t;
 
 /******************************************************************************

@@ -333,11 +333,45 @@ static inline void init_timerA( void ) {
 }
 
 /******************************************************************************
+ * Before doing anything, we need to restart the stack. Stack is set to the
+ * end of RAM. However, we are using the entire RAM with our structures or
+ * global data. So, we need to point the stack to its structures.
+ *
+ * We could have done that using the linker script, but the goal here is to
+ * make the system easy to understand and port.
+ *
+ *****************************************************************************/
+static void restart_stack( void ) {
+
+    // We now point the stack to the proper location in HalfKOS ram struct
+    // not before copying the current stack so we can return from the
+    // function calls
+    asm volatile (
+        "mov.w      #__stack,   r15     \n\t"
+        "mov.w      %0,         r14     \n\t"
+        "add.w      %1,         r14     \n\t"
+    "loop:                              \n\t"
+        "cmp        r15,         r1     \n\t"
+        "jz         end_loop            \n\t"
+        "decd       r14                 \n\t"
+        "decd       r15                 \n\t"
+        "mov.w      @r15,      @r14     \n\t"
+        "jmp        loop                \n\t"
+    "end_loop:                          \n\t"
+        "mov.w      r14,         r1     \n\t"
+        :
+        : "i" (&hkos_ram.os_stack[0]), "i" (sizeof(hkos_ram.os_stack))
+        :
+    );
+}
+
+/******************************************************************************
  *  Initialize the HAL and put the system at its initial state
  *
  *****************************************************************************/
 void hkos_hal_init( void ) {
     disable_wdt();
+    restart_stack();
     init_dco();
     init_timerA();
     __enable_interrupt();

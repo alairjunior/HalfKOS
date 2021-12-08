@@ -36,21 +36,22 @@
 
 // Configure how many bytes are available in RAM for HKOS.
 //
-// This should be 512, which is the size of MSP430G2553
-// RAM, but the original scat file from TI reserves 4 bytes
+// This should be 512 less all user global variable space.
+// However, the original scat file from TI reserves 4 bytes
 // for the heap. We could remove that from the scat file
 // but since it comes with msp430-gcc, we preferred to
 // use 4 bytes less and keep the default scat file.
-// If you need that 4 bytes, change the scat file and
-// you'll be able to use 512 bytes here.
-#define HKOS_AVAILABLE_RAM          504 // bytes
+//
+// 512 - 4 ( TI's heap ) - 2 ( global variable ) = 506
+#define HKOS_AVAILABLE_RAM          506 // bytes
 
 
 // Configure how many bytes are available for
-// HKOS' dynamic memory allocation
-// This must be HKOS_AVAILABLE_RAM minus the number
-// of bytes HKOS has for its own hosekeeping
+// HalfKOS idle stack, used for HalfKOS housekeeping
+// Except in case you are doing something really
+// exotic, 32 bytes for HalfKOS idle stack should be
+// sufficient.
 //
-#define HKOS_DYNAMIC_RAM            256 // bytes
+#define HKOS_IDLE_STACK             32 // bytes
 
 #endif // __HKOS_CONFIG_H

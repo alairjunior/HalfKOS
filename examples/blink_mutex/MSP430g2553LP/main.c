@@ -24,7 +24,7 @@
 
 
 // Global variable to store the mutex
-void* g_mutex;
+void* g_mutex = NULL;
 
 /**************************************************************************
  * Helper function to blink a LED
@@ -56,7 +56,6 @@ static void blink( uint8_t pin )
  * ************************************************************************/
 static void blink_green( void )
 {
-    g_mutex = hkos_create_mutex();
     blink( 14 );
 }
 
@@ -82,7 +81,8 @@ static void blink_error( void )
         hkos_gpio_toggle( 2 );
         hkos_gpio_toggle( 14 );
 
-        hkos_sleep( 200 );
+        volatile uint16_t i;
+        for ( i = 0; i < 65535; ++i );
     }
 }
 
@@ -90,6 +90,7 @@ static void blink_error( void )
  * Example Entry point
  *
  * ************************************************************************/
+#include <msp430.h>
 void setup( void ) {
 
     hkos_gpio_write( 2, LOW );
@@ -97,8 +98,12 @@ void setup( void ) {
     hkos_gpio_config( 2, OUTPUT );
     hkos_gpio_config( 14, OUTPUT );
 
+    hkos_create_mutex();
+    g_mutex = hkos_create_mutex();
+
     if ( g_mutex == NULL )
         blink_error();
+
 
     if ( hkos_add_task( blink_red, 32 ) == NULL )
         blink_error();

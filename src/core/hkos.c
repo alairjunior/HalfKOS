@@ -215,9 +215,11 @@ void hkos_sleep( uint16_t time_ms ) {
  *
  * ***************************************************************************/
 int main( void ) {
+
     hkos_init();
 
     setup();
 
     hkos_start();
+
 }
