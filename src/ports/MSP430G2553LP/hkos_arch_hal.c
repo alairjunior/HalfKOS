@@ -346,18 +346,22 @@ static void restart_stack( void ) {
     // We now point the stack to the proper location in HalfKOS ram struct
     // not before copying the current stack so we can return from the
     // function calls
+    // We are going to save from the top of the stack, to avoid overwriting.
     asm volatile (
         "mov.w      #__stack,   r15     \n\t"
+        "sub.w      r1,         r15     \n\t"   // r15 has number of bytes on the stack
         "mov.w      %0,         r14     \n\t"
-        "add.w      %1,         r14     \n\t"
+        "add.w      %1,         r14     \n\t"   // r14 points to the bottom of new stack
+        "sub.w      r15,        r14     \n\t"   // r14 points to the top of new stack
     "loop:                              \n\t"
-        "cmp        r15,         r1     \n\t"
+        "cmp        #__stack,   r1      \n\t"
         "jz         end_loop            \n\t"
-        "decd       r14                 \n\t"
-        "decd       r15                 \n\t"
-        "mov.w      @r15,      @r14     \n\t"
+        "mov.w      @r1,       @r14     \n\t"
+        "incd.w     r1                  \n\t"
+        "incd.w     r14                 \n\t"
         "jmp        loop                \n\t"
     "end_loop:                          \n\t"
+        "sub.w      r15,        r14     \n\t"
         "mov.w      r14,         r1     \n\t"
         :
         : "i" (&hkos_ram.os_stack[0]), "i" (sizeof(hkos_ram.os_stack))

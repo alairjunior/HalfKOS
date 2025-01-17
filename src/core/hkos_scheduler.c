@@ -66,32 +66,31 @@ static void* mem_alloc( hkos_dmem_header_t size ) {
     size = align( size + sizeof(hkos_dmem_header_t) );
 
     void* address = NULL;
-    do {
-        while( block_addr <= last_ram_addr ) {
-            hkos_ram_block_t* block = (hkos_ram_block_t*)block_addr;
 
-            // if the block is not used and fits the required size
-            if ( ( block->header.used == false ) && ( size <= block->header.size ) )
-            {
-                // Can we split the block?
-                if ( block->header.size > size + sizeof(hkos_dmem_header_t)) {
-                    hkos_ram_block_t* next = (hkos_ram_block_t*)(block_addr + size);
-                    next->header.used = false;
-                    next->header.size = block->header.size - size;
-                    block->header.size = size;
-                }
+    while( block_addr <= last_ram_addr ) {
+        hkos_ram_block_t* block = (hkos_ram_block_t*)block_addr;
 
-                // mark the block as used
-                block->header.used = true;
-                address = &block->p_buffer;
-                break;
-
-            } else {
-                // go to the next block
-                block_addr += block->header.size;
+        // if the block is not used and fits the required size
+        if ( ( block->header.used == false ) && ( size <= block->header.size ) )
+        {
+            // Can we split the block?
+            if ( block->header.size > size + sizeof(hkos_dmem_header_t)) {
+                hkos_ram_block_t* next = (hkos_ram_block_t*)(block_addr + size);
+                next->header.used = false;
+                next->header.size = block->header.size - size;
+                block->header.size = size;
             }
+
+            // mark the block as used
+            block->header.used = true;
+            address = &block->p_buffer;
+            break;
+
+        } else {
+            // go to the next block
+            block_addr += block->header.size;
         }
-    } while(0);
+    }
 
     // no block available for the requested size
     return address;
@@ -309,7 +308,9 @@ void hkos_scheduler_init( void ) {
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
     first_block->header.used = false;
-    first_block->header.size = sizeof(hkos_ram.dynamic_buffer);
+    first_block->header.size = sizeof(hkos_ram.dynamic_buffer) -
+                               ((size_t)align(&hkos_ram.dynamic_buffer[0]) -
+                                (size_t)&hkos_ram.dynamic_buffer[0]);
 }
 
 /******************************************************************************
