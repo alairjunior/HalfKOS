@@ -152,6 +152,29 @@ void hkos_sleep( uint16_t time_ms ) {
 }
 
 /******************************************************************************
+ * Suspend the callee until it is signalled
+ *
+ * ***************************************************************************/
+void hkos_suspend( void ) {
+    hkos_hal_enter_critical_section();
+    hkos_scheduler_suspend();
+    hkos_hal_exit_critical_section();
+}
+
+/******************************************************************************
+ * Signal a suspended task
+ *
+ * @param[in]       Pointer to the task
+ *
+ * ***************************************************************************/
+void hkos_signal( void* pTask )
+{
+    hkos_hal_enter_critical_section();
+    hkos_scheduler_signal( pTask );
+    hkos_hal_exit_critical_section();
+}
+
+/******************************************************************************
  * Entry point of HalfKOS
  *
  * ***************************************************************************/

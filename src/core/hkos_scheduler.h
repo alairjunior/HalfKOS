@@ -26,6 +26,8 @@
 #include <hkos_config.h>
 
 
+#define HKOS_WAIT_FOREVER       0
+
 /******************************************************************************
  * HalfKOS task structure
  *
@@ -216,5 +218,21 @@ void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex );
  *
  * ***************************************************************************/
 void hkos_scheduler_sleep( uint16_t time_ms );
+
+
+/******************************************************************************
+ * Suspend the callee until the task is signalled
+ *
+ * ***************************************************************************/
+void hkos_scheduler_suspend( void );
+
+
+/******************************************************************************
+ * Signal a suspended task
+ *
+ * @param[in]       Pointer to the task
+ *
+ * ***************************************************************************/
+void hkos_scheduler_signal( void* pTask );
 
 #endif // __HKOS_SCHEDULER_H

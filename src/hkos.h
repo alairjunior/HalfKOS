@@ -110,4 +110,19 @@ void hkos_destroy_mutex( void* p_mutex );
 void hkos_sleep( uint16_t time_ms );
 
 
+/******************************************************************************
+ * Suspend the callee until it is signalled
+ *
+ * ***************************************************************************/
+void hkos_suspend( void );
+
+
+/******************************************************************************
+ * Signal a suspended task
+ *
+ * @param[in]       Pointer to the task
+ *
+ * ***************************************************************************/
+void hkos_signal( void* pTask );
+
 #endif //__HKOS_H

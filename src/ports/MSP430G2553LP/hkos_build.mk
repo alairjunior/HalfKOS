@@ -3,7 +3,7 @@
  # This file is part of HalfKOS.
  # https://github.com/alairjunior/HalfKOS
  #
- # Copyright (c) 2021 Alair Dias Junior.
+ # Copyright (c) 2021-2025 Alair Dias Junior.
  #
  # HalfKOS is free software: you can redistribute it and/or modify
  # it under the terms of the GNU General Public License as published by
@@ -29,13 +29,12 @@ GCC_DIR   := $(TOOLS_DIR)/msp430-gcc
 
 # This defines the msp430-gcc mmcu device name
 DEVICE    := MSP430G2553
-# This defines the HalfKOS port name
-HKOS_PORT := MSP430G2553LP
+
 # This defines the target name
 TARGET   := halfkos
 
 
-HKOS_DIR  := ../../..
+HKOS_DIR  := ../..
 CXX      := $(GCC_DIR)/bin/msp430-elf-gcc
 OBJDUMP  := $(GCC_DIR)/bin/msp430-elf-objdump
 DEBUGGER := $(TOOLS_DIR)/mspdebug/mspdebug

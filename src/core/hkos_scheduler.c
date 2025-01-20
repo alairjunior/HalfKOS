@@ -281,7 +281,7 @@ static void update_waiting_list( void ) {
     hkos_task_t* task = hkos_ram.runtime_data.p_waiting_tasks_list;
 
     while( task != NULL ) {
-        if ( --task->delay_ticks == 0 ) {
+        if ( ( task->delay_ticks != HKOS_WAIT_FOREVER ) && (--task->delay_ticks == 0 ) ) {
             hkos_task_t* next = task->p_next;
             remove_task_from_list( task, &hkos_ram.runtime_data.p_waiting_tasks_list );
             add_task_to_head( task, &hkos_ram.runtime_data.p_running_tasks_list );
@@ -532,7 +532,7 @@ void hkos_scheduler_sleep( uint16_t time_ms ) {
     hkos_ram.runtime_data.p_current_task->delay_ticks =
                  time_ms * ( 1000 / ( HKOS_HAL_TICKS_IN_A_SECOND ) );
 
-    if ( hkos_ram.runtime_data.p_current_task->delay_ticks > 0 ) {
+    if ( ( time_ms == HKOS_WAIT_FOREVER ) || hkos_ram.runtime_data.p_current_task->delay_ticks > 0 ) {
         remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
         add_task_to_head( hkos_ram.runtime_data.p_current_task,
                             &hkos_ram.runtime_data.p_waiting_tasks_list );
@@ -540,4 +540,23 @@ void hkos_scheduler_sleep( uint16_t time_ms ) {
     }
 }
 
+/******************************************************************************
+ * Suspend the callee until the task is signalled
+ *
+ * ***************************************************************************/
+void hkos_scheduler_suspend( void )
+{
+    hkos_scheduler_sleep( HKOS_WAIT_FOREVER );
+}
 
+/******************************************************************************
+ * Signal a suspended task
+ *
+ * @param[in]       Pointer to the task
+ *
+ * ***************************************************************************/
+void hkos_scheduler_signal( void* pTask )
+{
+    // Remove task from the wait list in the next scheduler execution
+    ((hkos_task_t*)pTask)->delay_ticks = 1;
+}
