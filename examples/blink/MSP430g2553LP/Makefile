@@ -44,7 +44,7 @@ BUILD    := ./build
 OBJ_DIR  := $(BUILD)/objects
 SRC_DIR  := $(HKOS_DIR)/src
 APP_DIR  := $(BUILD)/apps
-CXXFLAGS := -mmcu=$(DEVICE) -Wall -DARCH=$(HKOS_PORT)
+CXXFLAGS := -mmcu=$(DEVICE) -Wall
 LDFLAGS  := -Wl,-Map,$(APP_DIR)/$(DEVICE).map,--gc-sections
 
 INCLUDE  := -I$(SRC_DIR) \
@@ -55,8 +55,8 @@ INCLUDE  := -I$(SRC_DIR) \
 
 LIB      := -L$(GCC_DIR)/include
 SRC      := $(wildcard $(SRC_DIR)/*.c) \
-            $(wildcard $(SRC_DIR)/core/*.c) \
-			$(wildcard $(SRC_DIR)/ports/$(HKOS_PORT)/*.c) \
+            $(shell find "$(SRC_DIR)/core" -name "*.c") \
+			$(shell find "$(SRC_DIR)/ports/$(HKOS_PORT)" -name "*.c") \
 
 SRC_LOC  := $(wildcard ./*.c)
 

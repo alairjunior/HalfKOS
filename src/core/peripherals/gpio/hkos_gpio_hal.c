@@ -20,7 +20,7 @@
  *
  *****************************************************************************/
 
-#include <hkos_hal.h>
+#include "hkos_gpio_hal.h"
 
 /******************************************************************************
  * Configure a GPIO pin
@@ -32,8 +32,8 @@
  * @param[in]   mode    the mode selected from the pin mode enumeration
  *
  *****************************************************************************/
-void __attribute__((weak)) hkos_hal_gpio_config(    uint8_t pin,
-                                                    gpio_pin_mode_t mode )
+void __attribute__((weak)) hkos_gpio_config(    uint8_t pin,
+                                                hkos_gpio_pin_mode_t mode )
 {
     // default implementation does nothing
 }
@@ -48,8 +48,8 @@ void __attribute__((weak)) hkos_hal_gpio_config(    uint8_t pin,
  * @param[in]   value   the value selected from the pin value enumeration
  *
  *****************************************************************************/
-void __attribute__((weak)) hkos_hal_gpio_write( uint8_t pin,
-                                                gpio_value_t value )
+void __attribute__((weak)) hkos_gpio_write( uint8_t pin,
+                                            hkos_gpio_value_t value )
 {
     // default implementation does nothing
 }
@@ -63,7 +63,7 @@ void __attribute__((weak)) hkos_hal_gpio_write( uint8_t pin,
  * @param[in]   pin     pin number
  *
  *****************************************************************************/
-void __attribute__((weak)) hkos_hal_gpio_toggle( uint8_t pin )
+void __attribute__((weak)) hkos_gpio_toggle( uint8_t pin )
 {
     // default implementation does nothing
 }
@@ -79,7 +79,7 @@ void __attribute__((weak)) hkos_hal_gpio_toggle( uint8_t pin )
  * @return  The value of the GPIO pin taken from the pin value enumeration
  *
  *****************************************************************************/
-gpio_value_t __attribute__((weak)) hkos_hal_gpio_read( uint8_t pin )
+hkos_gpio_value_t __attribute__((weak)) hkos_gpio_read( uint8_t pin )
 {
     // default implementation returns LOW
     return LOW;
