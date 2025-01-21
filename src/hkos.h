@@ -22,8 +22,10 @@
 #ifndef __HKOS_H
 #define __HKOS_H
 
+#include <hkos_errors.h>
 #include <core/hkos_core.h>
 #include <core/peripherals/gpio/hkos_gpio_hal.h>
+#include <core/peripherals/serial/hkos_serial_hal.h>
 
 /******************************************************************************
  * Initialize HalfKOS

@@ -3,7 +3,7 @@
  * This file is part of HalfKOS.
  * https://github.com/alairjunior/HalfKOS
  *
- * Copyright (c) 2021 Alair Dias Junior.
+ * Copyright (c) 2025 Alair Dias Junior.
  *
  * HalfKOS is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

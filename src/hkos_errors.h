@@ -19,22 +19,14 @@
  * along with HalfKOS.  If not, see <https://www.gnu.org/licenses/>.
  *
  *****************************************************************************/
+#ifndef __HKOS_ERRORS_H
+#define __HKOS_ERRORS_H
 
-#ifndef __HKOS_ARCH_HAL_H
-#define __HKOS_ARCH_HAL_H
+typedef enum {
+    HKOS_ERROR_NONE = 0,
+    HKOS_ERROR_NOT_IMPLEMENTED,
+    HKOS_ERROR_INVALID_RESOURCE,
+    HKOS_ERROR_NOT_SUPPORTED
+} hkos_error_code_t;
 
-#include <inttypes.h>
-
-#define HKOS_HAL_TICKS_IN_A_SECOND              1000
-#define F_CPU                                   16000000L
-
-// Configure the data type of the dynamic memory
-// allocation block header. Besides the size requested
-// during the allocation, the number of bytes of the data
-// type below will be included to the block. One bit of this
-// header is used for marking the block as used/free and
-// the remaining bits are used for the size of the block.
-// Hence, blocks can be up to 2^(datatype bits - 1) long.
-typedef uint16_t                    hkos_dmem_header_t;
-
-#endif // __HKOS_ARCH_HAL_H
+#endif //__HKOS_ERRORS_H
