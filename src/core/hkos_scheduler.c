@@ -351,7 +351,9 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
                                         ) ) )
         {
             // It is a round-robin. So, it doesn't matter where you add the task
+            hkos_hal_enter_critical_section();
             add_task_to_head( p_task, &hkos_ram.runtime_data.p_running_tasks_list );
+            hkos_hal_exit_critical_section();
             return p_task;
         }
 
@@ -380,9 +382,10 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
 
         hkos_task_t* p_task = (hkos_task_t*)p_task_in;
 
+        hkos_hal_enter_critical_section();
         remove_task_from_running_list( p_task );
-
         mem_free(p_task);
+        hkos_hal_exit_critical_section();
     }
 }
 
@@ -475,8 +478,10 @@ void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex ) {
         while(1);
 
     if ( p_mutex->locked ) {
+        hkos_hal_enter_critical_section();
         remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
         add_task_to_tail( hkos_ram.runtime_data.p_current_task, &p_mutex->p_task );
+        hkos_hal_exit_critical_section();
         hkos_scheduler_yield();
 
     } else {
@@ -498,8 +503,10 @@ void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex ) {
 
         if ( p_mutex->p_task != NULL ) {
             hkos_task_t* released = p_mutex->p_task;
+            hkos_hal_enter_critical_section();
             remove_task_from_list( p_mutex->p_task, &p_mutex->p_task );
             add_task_to_head( released, &hkos_ram.runtime_data.p_running_tasks_list );
+            hkos_hal_exit_critical_section();
         }
 
         if ( p_mutex->p_task == NULL )
@@ -533,9 +540,11 @@ void hkos_scheduler_sleep( uint16_t time_ms ) {
                  time_ms * ( 1000 / ( HKOS_HAL_TICKS_IN_A_SECOND ) );
 
     if ( ( time_ms == HKOS_WAIT_FOREVER ) || hkos_ram.runtime_data.p_current_task->delay_ticks > 0 ) {
+        hkos_hal_enter_critical_section();
         remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
         add_task_to_head( hkos_ram.runtime_data.p_current_task,
                             &hkos_ram.runtime_data.p_waiting_tasks_list );
+        hkos_hal_exit_critical_section();
         hkos_scheduler_yield();
     }
 }
