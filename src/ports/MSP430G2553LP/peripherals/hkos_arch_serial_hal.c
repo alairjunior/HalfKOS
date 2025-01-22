@@ -65,6 +65,9 @@ hkos_error_code_t hkos_arch_serial_open(    uint8_t port,
     if ( port > 1 )
         return HKOS_ERROR_INVALID_RESOURCE;
 
+    if ( ( IE2 & UCA0RXIE ) != 0 )
+        return HKOS_ERROR_RESOURCE_BUSY;
+
     // Reset UART
     UCA0CTL1 = UCSWRST;
 
