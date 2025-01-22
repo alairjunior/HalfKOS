@@ -39,8 +39,8 @@
 // but since it comes with msp430-gcc, we preferred to
 // use 4 bytes less and keep the default scat file.
 //
-// 512 - 4 ( TI's heap ) - serial buffers = 472
-#define HKOS_AVAILABLE_RAM          472 // bytes
+// 512 - 4 ( TI's heap ) - serial buffers - serial wait lists = 470
+#define HKOS_AVAILABLE_RAM          470 // bytes
 
 
 // Configure how many bytes are available for

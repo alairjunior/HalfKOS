@@ -32,9 +32,10 @@
 
 // General Macros
 //
-#define align(x)        ( ( typeof( x ) )( ( size_t )( x + alignof(max_align_t) - 1 ) \
-                            & ( size_t )( ~( alignof(max_align_t) -1 ) ) ) )
+#define align(x)                    ( ( typeof( x ) )( ( size_t )( x + alignof(max_align_t) - 1 ) \
+                                        & ( size_t )( ~( alignof(max_align_t) -1 ) ) ) )
 
+#define HKOS_DELAY_UNCHANGED        (~HKOS_WAIT_FOREVER) // Any value different from HKOS_WAIT_FOREVER will do
 
 /******************************************************************************
  * RAM buffer definition
@@ -283,6 +284,11 @@ static void update_waiting_list( void ) {
     while( task != NULL ) {
         if ( ( task->delay_ticks != HKOS_WAIT_FOREVER ) && (--task->delay_ticks == 0 ) ) {
             hkos_task_t* next = task->p_next;
+            // to squeeze every bit we can, we use delay_ticks as a flag
+            // to know if an event happened while we are registering for it.
+            // We put a canary (HKOS_DELAY_UNCHANGED) in task->delay_ticks and if it had,
+            // changed when calling sleep forever, it is because the event happened.
+            task->delay_ticks = HKOS_DELAY_UNCHANGED;
             remove_task_from_list( task, &hkos_ram.runtime_data.p_waiting_tasks_list );
             add_task_to_head( task, &hkos_ram.runtime_data.p_running_tasks_list );
             task = next;
@@ -340,7 +346,7 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
 
     if ( p_task != NULL ) {
         // Initialize the delay_ticks.
-        p_task->delay_ticks = 0;
+        p_task->delay_ticks = HKOS_DELAY_UNCHANGED;
 
         // initialize the stack pointer at the top of task's memory
         p_task->p_sp = ( (uint8_t*)p_task ) + total_size;
@@ -536,14 +542,21 @@ void hkos_scheduler_destroy_mutex( hkos_mutex_t* p_mutex ) {
  *
  * ***************************************************************************/
 void hkos_scheduler_sleep( uint16_t time_ms ) {
-    hkos_ram.runtime_data.p_current_task->delay_ticks =
-                 time_ms * ( 1000 / ( HKOS_HAL_TICKS_IN_A_SECOND ) );
 
-    if ( ( time_ms == HKOS_WAIT_FOREVER ) || hkos_ram.runtime_data.p_current_task->delay_ticks > 0 ) {
+    uint16_t delay_ticks = time_ms * ( 1000 / ( HKOS_HAL_TICKS_IN_A_SECOND ) );
+
+    if ( ( time_ms == HKOS_WAIT_FOREVER ) || delay_ticks > 0 ) {
         hkos_hal_enter_critical_section();
-        remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
-        add_task_to_head( hkos_ram.runtime_data.p_current_task,
-                            &hkos_ram.runtime_data.p_waiting_tasks_list );
+        // Check the delay ticks. If it has not changed, we put the task to sleep.
+        // Otherwise, an event the task was waiting happened and we need to return
+        // immediately.
+        if ( hkos_ram.runtime_data.p_current_task->delay_ticks == HKOS_DELAY_UNCHANGED )
+        {
+            hkos_ram.runtime_data.p_current_task->delay_ticks = delay_ticks;
+            remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
+            add_task_to_head( hkos_ram.runtime_data.p_current_task,
+                                &hkos_ram.runtime_data.p_waiting_tasks_list );
+        }
         hkos_hal_exit_critical_section();
         hkos_scheduler_yield();
     }

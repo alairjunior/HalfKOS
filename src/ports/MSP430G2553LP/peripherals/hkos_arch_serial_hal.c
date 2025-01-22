@@ -192,10 +192,12 @@ void USCIAB0RX_ISR(void)
     uint16_t i = (hkos_serial_rx_buffer[port].head + 1) % HKOS_SERIAL_BUFFER_SIZE;
 
     // Check if there is space before adding the character
-	if (i != hkos_serial_rx_buffer[port].tail) {
+	if (i != hkos_serial_rx_buffer[port].tail)
+    {
 		hkos_serial_rx_buffer[port].buffer[hkos_serial_rx_buffer[port].head] = UCA0RXBUF;
 		hkos_serial_rx_buffer[port].head = i;
 	}
+    hkos_serial_signal_waiting_tasks( port );
 }
 
 
@@ -208,7 +210,8 @@ void USCIAB0TX_ISR(void)
 {
     uint8_t port = 0;
 
-    if (hkos_serial_tx_buffer[port].head == hkos_serial_tx_buffer[port].tail) {
+    if (hkos_serial_tx_buffer[port].head == hkos_serial_tx_buffer[port].tail)
+    {
 		// Nothing more to transmit. Disable interrupt
 		IE2 &= ~UCA0TXIE;
         // Set the flag for the next write. There we enable

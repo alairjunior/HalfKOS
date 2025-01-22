@@ -102,7 +102,31 @@ hkos_error_code_t hkos_serial_close( uint8_t port );
 
 
 /**************************************************************************
- * Read the number of bytes available in the serial port
+ * Suspend the calling thread until bytes are available in the serial port
+ * rx buffer. If bytes are already available, return immediately.
+ *
+ * @param[in]       port            Port number
+ *
+ * @return      number of bytes available
+ *
+ * ************************************************************************/
+uint16_t hkos_serial_wait( uint8_t port );
+
+
+/**************************************************************************
+ * Signals all tasks that are waiting for characters to be received.
+ * This function must be called by arch when new characters are put in
+ * the rx buffer.
+ *
+ * @param[in]       port            Port number
+ *
+ * ************************************************************************/
+void hkos_serial_signal_waiting_tasks( uint8_t port );
+
+
+/**************************************************************************
+ * Perform a non-blocking read of the number of bytes available in the
+ * serial port
  *
  * @param[in]       port            Port number
  *
@@ -113,8 +137,8 @@ uint16_t hkos_serial_available( uint8_t port );
 
 
 /**************************************************************************
- * Read one byte from the serial port, but don't remove it from receiving
- * buffer
+ * Perform a non-blocking read of one byte from the serial port,
+ * but don't remove it from receiving buffer.
  *
  * @param[in]       port            Port number
  *
@@ -125,7 +149,8 @@ int16_t hkos_serial_peek( uint8_t port );
 
 
 /**************************************************************************
- * Read one byte from the serial port.
+ * Perform a blocking read of one byte from the serial port. The byte is
+ * removed from the port's rx buffer.
  *
  * @param[in]       port            Port number
  *

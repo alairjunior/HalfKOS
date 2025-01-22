@@ -50,6 +50,7 @@ static void blink_error( void )
  * ************************************************************************/
 static void hello_serial( void )
 {
+
     hkos_error_code_t error = hkos_serial_open( 1,
                                                 9600,
                                                 HKOS_SERIAL_DATA_8,
@@ -59,9 +60,12 @@ static void hello_serial( void )
     if ( error != HKOS_ERROR_NONE )
         blink_error();
 
+    hkos_serial_println( 0, "Hello Serial! Press any key." );
     while(1) {
-        hkos_serial_println( 0, "Hello Serial!" );
-        hkos_sleep( 4000 );
+        char c = hkos_serial_read( 0 );
+        hkos_serial_print( 0, "You pressed '" );
+        hkos_serial_write( 0,  c );
+        hkos_serial_println( 0, "'" );
     }
 }
 
@@ -76,7 +80,7 @@ void setup( void ) {
     hkos_gpio_config( 2, OUTPUT );
     hkos_gpio_config( 14, OUTPUT );
 
-    if ( hkos_add_task( hello_serial, 16 ) == 0 )
+    if ( hkos_add_task( hello_serial, 64 ) == 0 )
         blink_error();
 
 }
