@@ -39,8 +39,8 @@ extern hkos_error_code_t hkos_arch_serial_tx_pending( uint8_t port );
 
 
 // Ring buffers
-hkos_serial_ring_buffer hkos_serial_rx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  { 0 };
-hkos_serial_ring_buffer hkos_serial_tx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  { 0 };
+hkos_serial_ring_buffer hkos_serial_rx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  {{{ 0 },0,0}};
+hkos_serial_ring_buffer hkos_serial_tx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  {{{ 0 },0,0}};
 
 // Waiting tasks list
 hkos_task_t*    hkos_serial_waiting_tasks[HKOS_SERIAL_PORTS_ENABLE] = { 0 };
