@@ -61,7 +61,7 @@ Managing multiple tasks in bare-metal programming can be complex and error-prone
 ### 🔄 **Easier Code Maintenance**
 With tasks isolated in separate modules, your code becomes more modular, easier to debug, and more scalable. This makes it simpler to manage as your project grows in complexity.
 
-###🕹️ Task Scheduling Without Overhead
+### 🕹️ Task Scheduling Without Overhead
 While not a true RTOS, HalfKOS allows you to manage concurrent tasks without the complexity of managing timers and interrupts manually. It's a lightweight solution for applications requiring multitasking.
 
 ---
