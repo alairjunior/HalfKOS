@@ -1,9 +1,9 @@
 # HalfKOS Blink Example with Mutex for Synchronization
 
-This is a very simple example on how to configure HalfKOS for running basic tasks.
+This is a simple example on how to configure HalfKOS for running basic tasks.
 In this example, there are two tasks: one for the Green LED and the other for the
-Red LED. If everything goes right, the LEDs should blink more or less in sync, but
-not at the same time possibly with some overlapping. If the LEDs blink in sync and
+Red LED. If everything goes right, the LEDs should blink in sync, but not at the
+same time possibly (with no overlapping). If the LEDs blink in sync and
 always at the same time, most probably there is an error and blink_error was invoked.
 
 In this example, both tasks are created before starting HalfKOS and they execute
