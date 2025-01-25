@@ -256,30 +256,30 @@ static void remove_task_from_list( hkos_task_t* p_task, hkos_task_t** pp_head ) 
 }
 
 /**************************************************************************
- * Helper function to remove a task from the running list
+ * Helper function to remove a task from the ready list
  *
  * Caller is responsible for making sure this will not be preempted
  *
  * @param[in]       p_task          The task to be removed
  *
  * ************************************************************************/
-static void remove_task_from_running_list( hkos_task_t* p_task ) {
+static void remove_task_from_ready_list( hkos_task_t* p_task ) {
 
     if ( p_task != NULL && p_task == hkos_ram.runtime_data.p_next_task ) {
         hkos_ram.runtime_data.p_next_task = p_task->p_next;
     }
-    remove_task_from_list( p_task, &hkos_ram.runtime_data.p_running_tasks_list );
+    remove_task_from_list( p_task, &hkos_ram.runtime_data.p_ready_tasks );
 }
 
 
 /**************************************************************************
- * Helper function to update the waiting list
+ * Helper function to update the blocked list
  *
  * Caller is responsible for making sure this will not be preempted
  *
  * ************************************************************************/
-static void update_waiting_list( void ) {
-    hkos_task_t* task = hkos_ram.runtime_data.p_waiting_tasks_list;
+static void update_blocked( void ) {
+    hkos_task_t* task = hkos_ram.runtime_data.p_blocked_tasks;
 
     while( task != NULL ) {
         if ( ( task->delay_ticks != HKOS_WAIT_FOREVER ) && (--task->delay_ticks == 0 ) ) {
@@ -289,8 +289,8 @@ static void update_waiting_list( void ) {
             // We put a canary (HKOS_DELAY_UNCHANGED) in task->delay_ticks and if it had,
             // changed when calling sleep forever, it is because the event happened.
             task->delay_ticks = HKOS_DELAY_UNCHANGED;
-            remove_task_from_list( task, &hkos_ram.runtime_data.p_waiting_tasks_list );
-            add_task_to_head( task, &hkos_ram.runtime_data.p_running_tasks_list );
+            remove_task_from_list( task, &hkos_ram.runtime_data.p_blocked_tasks );
+            add_task_to_head( task, &hkos_ram.runtime_data.p_ready_tasks );
             task = next;
         } else {
             task = task->p_next;
@@ -306,10 +306,10 @@ static void update_waiting_list( void ) {
  * ************************************************************************/
 void hkos_scheduler_init( void ) {
     // no tasks
-    hkos_ram.runtime_data.p_current_task = NULL;
+    hkos_ram.runtime_data.p_running_task = NULL;
     hkos_ram.runtime_data.p_next_task = NULL;
-    hkos_ram.runtime_data.p_running_tasks_list = NULL;
-    hkos_ram.runtime_data.p_waiting_tasks_list = NULL;
+    hkos_ram.runtime_data.p_ready_tasks = NULL;
+    hkos_ram.runtime_data.p_blocked_tasks = NULL;
 
     // all memory is free
     hkos_ram_block_t *first_block = (hkos_ram_block_t*) align(&hkos_ram.dynamic_buffer[0]);
@@ -358,7 +358,7 @@ void* hkos_scheduler_add_task( void (*p_task_func)(), hkos_size_t stack_size ) {
         {
             // It is a round-robin. So, it doesn't matter where you add the task
             hkos_hal_enter_critical_section();
-            add_task_to_head( p_task, &hkos_ram.runtime_data.p_running_tasks_list );
+            add_task_to_head( p_task, &hkos_ram.runtime_data.p_ready_tasks );
             hkos_hal_exit_critical_section();
             return p_task;
         }
@@ -389,7 +389,7 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
         hkos_task_t* p_task = (hkos_task_t*)p_task_in;
 
         hkos_hal_enter_critical_section();
-        remove_task_from_running_list( p_task );
+        remove_task_from_ready_list( p_task );
         mem_free(p_task);
         hkos_hal_exit_critical_section();
     }
@@ -401,19 +401,19 @@ void hkos_scheduler_remove_task( void* p_task_in ) {
  * ************************************************************************/
 void hkos_scheduler_switch_context( void ) {
 
-    if ( hkos_ram.runtime_data.p_running_tasks_list == NULL ) {
-        hkos_ram.runtime_data.p_current_task = NULL;
+    if ( hkos_ram.runtime_data.p_ready_tasks == NULL ) {
+        hkos_ram.runtime_data.p_running_task = NULL;
         hkos_ram.runtime_data.p_next_task = NULL;
         return; // no task to run
     }
 
-    hkos_ram.runtime_data.p_current_task = hkos_ram.runtime_data.p_next_task;
+    hkos_ram.runtime_data.p_running_task = hkos_ram.runtime_data.p_next_task;
 
-    if ( hkos_ram.runtime_data.p_current_task == NULL ) {
-        hkos_ram.runtime_data.p_current_task = hkos_ram.runtime_data.p_running_tasks_list;
+    if ( hkos_ram.runtime_data.p_running_task == NULL ) {
+        hkos_ram.runtime_data.p_running_task = hkos_ram.runtime_data.p_ready_tasks;
     }
 
-    hkos_ram.runtime_data.p_next_task = hkos_ram.runtime_data.p_current_task->p_next;
+    hkos_ram.runtime_data.p_next_task = hkos_ram.runtime_data.p_running_task->p_next;
 
 
     hkos_ram.runtime_data.ticks_from_switch = 0;
@@ -428,7 +428,7 @@ void hkos_scheduler_switch_context( void ) {
  * ************************************************************************/
 void hkos_scheduler_tick_timer( void ) {
 
-    update_waiting_list();
+    update_blocked();
 
     ++hkos_ram.runtime_data.ticks_from_switch;
     if (  hkos_ram.runtime_data.ticks_from_switch >
@@ -480,13 +480,13 @@ void hkos_scheduler_lock_mutex( hkos_mutex_t* p_mutex ) {
 
     // This should never happen. If this is true, it means the "idle task"
     // is trying to lock the mutex. So we hang here to debug
-    if ( hkos_ram.runtime_data.p_current_task == NULL )
+    if ( hkos_ram.runtime_data.p_running_task == NULL )
         while(1);
 
     if ( p_mutex->locked ) {
         hkos_hal_enter_critical_section();
-        remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
-        add_task_to_tail( hkos_ram.runtime_data.p_current_task, &p_mutex->p_task );
+        remove_task_from_ready_list( hkos_ram.runtime_data.p_running_task );
+        add_task_to_tail( hkos_ram.runtime_data.p_running_task, &p_mutex->p_task );
         hkos_hal_exit_critical_section();
         hkos_scheduler_yield();
 
@@ -511,7 +511,7 @@ void hkos_scheduler_unlock_mutex( hkos_mutex_t* p_mutex ) {
             hkos_task_t* released = p_mutex->p_task;
             hkos_hal_enter_critical_section();
             remove_task_from_list( p_mutex->p_task, &p_mutex->p_task );
-            add_task_to_head( released, &hkos_ram.runtime_data.p_running_tasks_list );
+            add_task_to_head( released, &hkos_ram.runtime_data.p_ready_tasks );
             hkos_hal_exit_critical_section();
         }
 
@@ -550,12 +550,12 @@ void hkos_scheduler_sleep( uint16_t time_ms ) {
         // Check the delay ticks. If it has not changed, we put the task to sleep.
         // Otherwise, an event the task was waiting happened and we need to return
         // immediately.
-        if ( hkos_ram.runtime_data.p_current_task->delay_ticks == HKOS_DELAY_UNCHANGED )
+        if ( hkos_ram.runtime_data.p_running_task->delay_ticks == HKOS_DELAY_UNCHANGED )
         {
-            hkos_ram.runtime_data.p_current_task->delay_ticks = delay_ticks;
-            remove_task_from_running_list( hkos_ram.runtime_data.p_current_task );
-            add_task_to_head( hkos_ram.runtime_data.p_current_task,
-                                &hkos_ram.runtime_data.p_waiting_tasks_list );
+            hkos_ram.runtime_data.p_running_task->delay_ticks = delay_ticks;
+            remove_task_from_ready_list( hkos_ram.runtime_data.p_running_task );
+            add_task_to_head( hkos_ram.runtime_data.p_running_task,
+                                &hkos_ram.runtime_data.p_blocked_tasks );
         }
         hkos_hal_exit_critical_section();
         hkos_scheduler_yield();
@@ -579,6 +579,6 @@ void hkos_scheduler_suspend( void )
  * ***************************************************************************/
 void hkos_scheduler_signal( void* pTask )
 {
-    // Remove task from the wait list in the next scheduler execution
+    // Remove task from the blocked list in the next scheduler execution
     ((hkos_task_t*)pTask)->delay_ticks = 1;
 }

@@ -61,10 +61,10 @@ typedef struct hkos_mutex_t {
  *
  *****************************************************************************/
 typedef struct hkos_runtime_data_t {
-    hkos_task_t*        p_current_task;
+    hkos_task_t*        p_running_task;
     hkos_task_t*        p_next_task;
-    hkos_task_t*        p_running_tasks_list;
-    hkos_task_t*        p_waiting_tasks_list;
+    hkos_task_t*        p_ready_tasks;
+    hkos_task_t*        p_blocked_tasks;
     void*               p_idle_sp;
     uint16_t            ticks_from_switch;
 } hkos_runtime_data_t;

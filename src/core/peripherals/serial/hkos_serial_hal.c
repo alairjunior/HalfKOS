@@ -43,7 +43,7 @@ hkos_serial_ring_buffer hkos_serial_rx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  {{{ 
 hkos_serial_ring_buffer hkos_serial_tx_buffer[HKOS_SERIAL_PORTS_ENABLE]  =  {{{ 0 },0,0}};
 
 // Waiting tasks list
-hkos_task_t*    hkos_serial_waiting_tasks[HKOS_SERIAL_PORTS_ENABLE] = { 0 };
+hkos_task_t*    hkos_serial_blocked_tasks[HKOS_SERIAL_PORTS_ENABLE] = { 0 };
 
 /**************************************************************************
  * Open a serial port
@@ -101,14 +101,14 @@ uint16_t hkos_serial_wait( uint8_t port )
 {
     // This should never happen. If this is true, it means the "idle task"
     // is trying to call serial. So we hang here to debug
-    if ( hkos_ram.runtime_data.p_current_task == 0 )
+    if ( hkos_ram.runtime_data.p_running_task == 0 )
         while(1);
 
     bool buffer_empty = false;
     hkos_hal_enter_critical_section();
     if ( hkos_serial_available( port ) == 0 )
     {
-        hkos_serial_waiting_tasks[port] = hkos_ram.runtime_data.p_current_task;
+        hkos_serial_blocked_tasks[port] = hkos_ram.runtime_data.p_running_task;
         buffer_empty = true;
     }
     hkos_hal_exit_critical_section();
@@ -130,12 +130,12 @@ uint16_t hkos_serial_wait( uint8_t port )
  * ************************************************************************/
 void hkos_serial_signal_waiting_tasks( uint8_t port )
 {
-    if ( hkos_serial_waiting_tasks[port] != 0 )
+    if ( hkos_serial_blocked_tasks[port] != 0 )
     {
-        hkos_scheduler_signal( hkos_serial_waiting_tasks[port] );
+        hkos_scheduler_signal( hkos_serial_blocked_tasks[port] );
         // if this is the last character, we don't
         if ( hkos_serial_available( port ) == 1 )
-            hkos_serial_waiting_tasks[port] = 0;
+            hkos_serial_blocked_tasks[port] = 0;
     }
 }
 

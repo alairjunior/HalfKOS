@@ -229,7 +229,7 @@ inline hkos_size_t hkos_hal_get_min_stack_size( void ) {
  * handle the context switch must do the following operations:
  *
  *      1. Save the current task's context (stored in
- *              hkos_ram.runtime_data.p_current_task)
+ *              hkos_ram.runtime_data.p_running_task)
  *      2. Call hkos_scheduler_tick_timer
  *      3. Restore the new current task's context
  *
@@ -374,7 +374,7 @@ static void save_context_from_interrupt( void ) {
         "done_save_int:                     \n\t"
         "   ret                             \n\t"
             :
-            :   "m" ( hkos_ram.runtime_data.p_current_task ),
+            :   "m" ( hkos_ram.runtime_data.p_running_task ),
                 "i" ( offsetof( hkos_task_t, p_sp ) )
             :
     );
@@ -434,7 +434,7 @@ void hkos_hal_save_context( void ) {
         "done_save:                         \n\t"
         "   ret                             \n\t"
             :
-            :   "m" (hkos_ram.runtime_data.p_current_task),
+            :   "m" (hkos_ram.runtime_data.p_running_task),
                 "i" ( offsetof( hkos_task_t, p_sp ) )
             :
     );
@@ -478,7 +478,7 @@ void hkos_hal_restore_context( void ) {
         "done_restore:                      \n\t"
         "   reti                            \n\t"
             :
-            :   "m" ( hkos_ram.runtime_data.p_current_task ),
+            :   "m" ( hkos_ram.runtime_data.p_running_task ),
                 "i" ( offsetof( hkos_task_t, p_sp ) ),
                 "m" ( hkos_ram.runtime_data.p_idle_sp )
             :
