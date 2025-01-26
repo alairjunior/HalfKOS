@@ -25,9 +25,6 @@
 /**************************************************************************
  * Helper function to blink a LED
  *
- * We use attribute optmize O0 to prevent the busy wait from being
- * optimized out.
- *
  * @param[in]   pin    pin number
  *
  * ************************************************************************/

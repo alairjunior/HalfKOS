@@ -54,3 +54,7 @@ dkms.conf
 
 # Vscode
 .vscode
+
+# Local tests
+examples/local_tests
+
