@@ -25,9 +25,6 @@
 /**************************************************************************
  * Helper function to blink both LEDs em case of error
  *
- * We use attribute optmize O0 to prevent the busy wait from being
- * optimized out.
- *
  * ************************************************************************/
 static void blink_error( void )
 {
@@ -51,7 +48,7 @@ static void blink_error( void )
 static void hello_serial( void )
 {
 
-    hkos_error_code_t error = hkos_serial_open( 1,
+    hkos_error_code_t error = hkos_serial_open( 0,
                                                 9600,
                                                 HKOS_SERIAL_DATA_8,
                                                 HKOS_SERIAL_STOP_1,

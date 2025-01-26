@@ -35,7 +35,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include "hkos_errors.h"
-#include "hkos_config.h"
 
 // Serial parity
 typedef enum {
