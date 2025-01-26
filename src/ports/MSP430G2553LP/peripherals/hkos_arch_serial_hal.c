@@ -62,13 +62,13 @@ hkos_error_code_t hkos_arch_serial_open(    uint8_t port,
                                             hkos_serial_stop_bits_t stop_bits,
                                             hkos_serial_parity_t parity )
 {
-    if ( port > 1 )
+    if ( port >= HKOS_SERIAL_PORTS_ENABLE )
         return HKOS_ERROR_INVALID_RESOURCE;
 
     if ( ( IE2 & UCA0RXIE ) != 0 )
         return HKOS_ERROR_RESOURCE_BUSY;
 
-    // Reset UART
+    // Reset USCI
     UCA0CTL1 = UCSWRST;
 
     // Clear all config (should be 0 already)
@@ -125,7 +125,7 @@ hkos_error_code_t hkos_arch_serial_open(    uint8_t port,
     }
     UCA0BR0 = ( pres_N & 0xFF );
 
-    // Configure Ports for tertiary function (USCI)
+    // Configure Ports for USCI
     P1SEL  |= ( BIT1 | BIT2 );
     P1SEL2 |= ( BIT1 | BIT2 );
 
@@ -140,7 +140,6 @@ hkos_error_code_t hkos_arch_serial_open(    uint8_t port,
 
     return HKOS_ERROR_NONE;
 }
-
 
 /**************************************************************************
  * Closes a serial port
