@@ -181,22 +181,59 @@ hkos_error_code_t hkos_arch_serial_tx_pending( uint8_t port )
 
 
 /**************************************************************************
- * USCI A0 RX Interrupt vector
+ * UART A0 RX Interrupt handler
  *
  * ************************************************************************/
-__attribute__((interrupt(USCIAB0RX_VECTOR)))
-void USCIAB0RX_ISR(void)
+static inline void handle_uart_rx_interrupt( void )
 {
     uint8_t port = 0;
     uint16_t i = (hkos_serial_rx_buffer[port].head + 1) % HKOS_SERIAL_BUFFER_SIZE;
 
     // Check if there is space before adding the character
-	if (i != hkos_serial_rx_buffer[port].tail)
+    if (i != hkos_serial_rx_buffer[port].tail)
     {
-		hkos_serial_rx_buffer[port].buffer[hkos_serial_rx_buffer[port].head] = UCA0RXBUF;
-		hkos_serial_rx_buffer[port].head = i;
-	}
+        hkos_serial_rx_buffer[port].buffer[hkos_serial_rx_buffer[port].head] = UCA0RXBUF;
+        hkos_serial_rx_buffer[port].head = i;
+    }
     hkos_serial_signal_waiting_tasks( port );
+}
+
+
+/**************************************************************************
+ * USCI AB0 RX Interrupt vector
+ *
+ * ************************************************************************/
+__attribute__((interrupt(USCIAB0RX_VECTOR)))
+void USCIAB0RX_ISR(void)
+{
+    if ( ( IFG2 & UCA0RXIFG ) && ( ( UCA0CTL0 & UCSYNC ) == 0 ) )
+    {
+        handle_uart_rx_interrupt();
+    }
+}
+
+
+/**************************************************************************
+ * UART A0 TX Interrupt handler
+ *
+ * ************************************************************************/
+static inline void handle_uart_tx_interrupt( void )
+{
+    uint8_t port = 0;
+
+    if (hkos_serial_tx_buffer[port].head == hkos_serial_tx_buffer[port].tail)
+    {
+        // Nothing more to transmit. Disable interrupt
+        IE2 &= ~UCA0TXIE;
+        // Set the flag for the next write. There we enable
+        // interrupts and we will run this ISR again
+        IFG2 |= UCA0TXIFG;
+        return;
+    }
+
+    char c = hkos_serial_tx_buffer[port].buffer[hkos_serial_tx_buffer[port].tail];
+    hkos_serial_tx_buffer[port].tail = (hkos_serial_tx_buffer[port].tail + 1) % HKOS_SERIAL_BUFFER_SIZE;
+    UCA0TXBUF = c;
 }
 
 
@@ -207,21 +244,10 @@ void USCIAB0RX_ISR(void)
 __attribute__((interrupt(USCIAB0TX_VECTOR)))
 void USCIAB0TX_ISR(void)
 {
-    uint8_t port = 0;
-
-    if (hkos_serial_tx_buffer[port].head == hkos_serial_tx_buffer[port].tail)
+    if ( ( IFG2 & UCA0TXIFG ) && ( ( UCA0CTL0 & UCSYNC ) == 0 ) )
     {
-		// Nothing more to transmit. Disable interrupt
-		IE2 &= ~UCA0TXIE;
-        // Set the flag for the next write. There we enable
-        // interrupts and we will run this ISR again
-		IFG2 |= UCA0TXIFG;
-		return;
-	}
-
-	char c = hkos_serial_tx_buffer[port].buffer[hkos_serial_tx_buffer[port].tail];
-	hkos_serial_tx_buffer[port].tail = (hkos_serial_tx_buffer[port].tail + 1) % HKOS_SERIAL_BUFFER_SIZE;
-	UCA0TXBUF = c;
+        handle_uart_tx_interrupt();
+    }
 }
 
 #endif// HKOS_SERIAL_PORTS_ENABLE > 0

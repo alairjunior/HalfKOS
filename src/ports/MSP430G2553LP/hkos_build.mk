@@ -35,32 +35,42 @@ TARGET   := halfkos
 
 
 HKOS_DIR  := ../..
-CXX      := $(GCC_DIR)/bin/msp430-elf-gcc
-OBJDUMP  := $(GCC_DIR)/bin/msp430-elf-objdump
-DEBUGGER := $(TOOLS_DIR)/mspdebug/mspdebug
-SIZE	 := $(GCC_DIR)/bin/msp430-elf-size
-BUILD    := ./build
-OBJ_DIR  := $(BUILD)/objects
-SRC_DIR  := $(HKOS_DIR)/src
-APP_DIR  := $(BUILD)/apps
-CXXFLAGS := -mmcu=$(DEVICE) -Wall
-LDFLAGS  := -Wl,-Map,$(APP_DIR)/$(DEVICE).map,--gc-sections
+CC        := $(GCC_DIR)/bin/msp430-elf-gcc
+CXX       := $(GCC_DIR)/bin/msp430-elf-g++
+OBJDUMP   := $(GCC_DIR)/bin/msp430-elf-objdump
+DEBUGGER  := $(TOOLS_DIR)/mspdebug/mspdebug
+SIZE      := $(GCC_DIR)/bin/msp430-elf-size
+
+BUILD_DIR := ./build
+OBJ_DIR   := $(BUILD_DIR)/objects
+SRC_DIR   := $(HKOS_DIR)/src
+APP_DIR   := $(BUILD_DIR)/apps
+CFLAGS    := -mmcu=$(DEVICE) -Wall -ffunction-sections -fdata-sections $(CUSTOM_CFLAGS)
+LDFLAGS   := -Wl,-Map,$(APP_DIR)/$(DEVICE).map,--gc-sections
+
 
 INCLUDE  := -I$(SRC_DIR) \
             -I$(SRC_DIR)/core \
-			-I$(GCC_DIR)/include \
+            -I$(GCC_DIR)/include \
             -I$(SRC_DIR)/ports/$(HKOS_PORT) \
-			-I.
+            -I$(SRC_DIR)/aal/include \
+            -I$(SRC_DIR)/aal/Arduino \
+            -I.
+
+INCLUDE  += $(EXTERNAL_INCLUDE)
 
 LIB      := -L$(GCC_DIR)/include
+
 SRC      := $(wildcard $(SRC_DIR)/*.c) \
-            $(shell find "$(SRC_DIR)/core" -name "*.c") \
-			$(shell find "$(SRC_DIR)/ports/$(HKOS_PORT)" -name "*.c") \
+            $(shell find "$(SRC_DIR)/core" -name "*.c" -o -name "*.cpp") \
+            $(shell find "$(SRC_DIR)/ports/$(HKOS_PORT)" -name "*.c" -o -name "*.cpp") \
+            $(shell find "$(SRC_DIR)/aal/src" -name "*.c" -o -name "*.cpp") \
+            $(wildcard ./*.c) \
+            $(wildcard ./*.cpp)
 
-SRC_LOC  := $(wildcard ./*.c)
+SRC      += $(EXTERNAL_SRC)
 
-OBJECTS  := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC))
-OBJECTS  += $(patsubst ./%.c,$(OBJ_DIR)/%.o,$(SRC_LOC))
+OBJECTS  := $(addprefix $(OBJ_DIR)/, $(filter %.o,$(SRC:.cpp=.o) $(SRC:.c=.o)))
 
 BINARY   := $(TARGET).elf
 
@@ -69,15 +79,17 @@ DEPENDENCIES \
 
 all: build $(APP_DIR)/$(BINARY)
 
-vpath %.c $(SRC_DIR) ./
-
 $(OBJ_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) -c $< -MMD -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -MMD -o $@
+
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(@D)
+	$(CXX) $(CFLAGS) $(INCLUDE) -c $< -MMD -o $@
 
 $(APP_DIR)/$(BINARY): $(OBJECTS)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) -o $(APP_DIR)/$(BINARY) $^ $(LDFLAGS) $(LIB)
+	$(CXX) $(CFLAGS) -o $(APP_DIR)/$(BINARY) $^ $(LDFLAGS) $(LIB)
 
 -include $(DEPENDENCIES)
 
@@ -87,10 +99,10 @@ build:
 	@mkdir -p $(APP_DIR)
 	@mkdir -p $(OBJ_DIR)
 
-debug: CXXFLAGS += -DDEBUG -g -Og
+debug: CFLAGS += -DDEBUG -g -Og
 debug: all
 
-release: CXXFLAGS += -O3
+release: CFLAGS += -Os -g0
 release: all
 
 run:

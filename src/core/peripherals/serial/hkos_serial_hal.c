@@ -221,7 +221,7 @@ hkos_error_code_t hkos_serial_write( uint8_t port, char data )
  * @return      HKOS_ERROR_NONE or error code
  *
  * ************************************************************************/
-hkos_error_code_t hkos_serial_write_buffer( uint8_t port, char* data, uint16_t size )
+hkos_error_code_t hkos_serial_write_buffer( uint8_t port, const char* data, uint16_t size )
 {
     hkos_error_code_t error_code = HKOS_ERROR_NONE;
     for ( uint16_t i = 0; i < size; ++i )
@@ -243,7 +243,7 @@ hkos_error_code_t hkos_serial_write_buffer( uint8_t port, char* data, uint16_t s
  * @return      HKOS_ERROR_NONE or error code
  *
  * ************************************************************************/
-hkos_error_code_t hkos_serial_print( uint8_t port, char* data )
+hkos_error_code_t hkos_serial_print( uint8_t port, const char* data )
 {
     hkos_error_code_t error_code = HKOS_ERROR_NONE;
     for (; *data != 0; ++data )
@@ -265,7 +265,7 @@ hkos_error_code_t hkos_serial_print( uint8_t port, char* data )
  * @return      HKOS_ERROR_NONE or error code
  *
  * ************************************************************************/
-hkos_error_code_t hkos_serial_println( uint8_t port, char* data )
+hkos_error_code_t hkos_serial_println( uint8_t port, const char* data )
 {
     hkos_error_code_t error_code;
 
